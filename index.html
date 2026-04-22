@@ -1001,23 +1001,53 @@
                 return;
             }
 
-            const newLeads = state.csvData.map((row, idx) => ({
-                id: 'lead_' + Date.now() + '_' + idx,
-                name: row.name || '',
-                email: row.email || '',
-                phone: row.phone || '',
-                city: row.city || '',
-                keyword: row.keyword || '',
-                status: (row.status || 'new').toLowerCase(),
-                interestLevel: parseInt(row['interest level'] || 5),
-                product: row.product || '',
-                followupDate: null,
-                notes: '',
-                createdAt: new Date().toISOString()
-            }));
+            const newLeads = state.csvData.map((row, idx) => {
+                // Helper to access fields case-insensitively
+                const getField = (fieldName) => {
+                    for (let key in row) {
+                        if (key.toLowerCase() === fieldName.toLowerCase()) {
+                            return row[key] || '';
+                        }
+                    }
+                    return '';
+                };
 
-            newLeads.forEach(newLead => {
-                const existingIdx = state.allLeads.findIndex(l => l.email === newLead.email || l.phone === newLead.phone);
+                return {
+                    id: getField('serial number') || 'lead_' + Date.now() + '_' + idx,
+                    name: getField('company name') || getField('name') || '',
+                    email1: getField('email1') || getField('email') || '',
+                    email2: getField('email2') || '',
+                    phone: getField('phone') || getField('contact_person_mobile') || '',
+                    city: getField('city') || '',
+                    state: getField('state') || '',
+                    keyword: getField('keyword') || getField('product') || '',
+                    category: getField('category') || '',
+                    website: getField('website') || '',
+                    status: 'new',
+                    interestLevel: parseInt(getField('rating') || 0),
+                    product: getField('keyword') || '',
+                    notes: getField('description') || getField('notes') || '',
+                    contact_person: getField('contact_person') || '',
+                    company_name: getField('company name') || getField('name') || '',
+                    createdAt: new Date().toISOString()
+                };
+            });
+
+            // Validate and filter out completely empty rows
+            const validLeads = newLeads.filter(lead => lead.name || lead.email1 || lead.phone);
+
+            if (validLeads.length === 0) {
+                showToast('No valid leads found in CSV');
+                return;
+            }
+
+            validLeads.forEach(newLead => {
+                const email = newLead.email1 || newLead.email2;
+                const existingIdx = state.allLeads.findIndex(l => 
+                    (email && (l.email === email || l.email === newLead.email1 || l.email === newLead.email2)) ||
+                    (newLead.phone && l.phone === newLead.phone)
+                );
+                
                 if (existingIdx >= 0) {
                     if (state.allLeads[existingIdx].status === 'new') {
                         Object.assign(state.allLeads[existingIdx], newLead);
@@ -1031,8 +1061,8 @@
             });
 
             saveToStorage();
-            syncToBackend('importCSV', { leads: newLeads });
-            showToast(`Imported ${newLeads.length} leads`);
+            syncToBackend('importCSV', { leads: validLeads });
+            showToast(`Imported ${validLeads.length} leads`);
             document.getElementById('import-result').classList.remove('hidden');
             clearImport();
         }

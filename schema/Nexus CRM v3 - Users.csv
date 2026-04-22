@@ -1,0 +1,4 @@
+User_ID,Name,Email,Role,Team_ID,Created_At,Last_Login
+user_001,John Smith,john@company.in,employee,team_sales,,
+user_002,Sarah Johnson,sarah@company.in,team_leader,team_sales,,
+user_003,Admin User,admin@company.in,admin,team_sales,,

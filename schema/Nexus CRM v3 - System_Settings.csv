@@ -1,0 +1,5 @@
+Key,Value,Last_Updated
+SMTP_Enabled,FALSE,4/18/2026
+LLM_Provider,disabled,4/18/2026
+Email_Throttle_Seconds,45,4/18/2026
+Max_Leads_Per_Sheet,5000,4/18/2026

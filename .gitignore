@@ -1,9 +1,14 @@
 # Development and build files
 Code_v3.gs
 csv_parse_fix.js
-FINAL_CHECKLIST.md
-INTEGRATION_GUIDE_v3.md
 v3_SUMMARY.txt
+
+# Markdown documentation (all .md files)
+*.md
+
+# Sample data and schema files
+schema/
+sample school data - Sheet1.csv
 
 # System files
 .DS_Store
