@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nexus CRM - Serverless Google Workspace Solution">
+    <title>Nexus CRM</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Clash+Display:wght@600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        h1, h2, h3, .brand-title { font-family: 'Clash Display', sans-serif; letter-spacing: -0.5px; }
+
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --muted: #64748b;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: var(--dark);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .page-view { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        .lead-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .lead-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08); transform: translateY(-2px); }
+
+        .interest-1 { background: #fee2e2; color: #991b1b; }
+        .interest-2 { background: #fed7aa; color: #92400e; }
+        .interest-3 { background: #fef08a; color: #713f12; }
+        .interest-4 { background: #dcfce7; color: #15803d; }
+        .interest-5 { background: #c6f6d5; color: #065f46; }
+        .interest-6 { background: #a7f3d0; color: #065f46; }
+        .interest-7 { background: #67e8f9; color: #164e63; }
+        .interest-8 { background: #06b6d4; color: #164e63; }
+        .interest-9 { background: #0284c7; color: #f1f5f9; }
+        .interest-10 { background: #1e40af; color: #f1f5f9; }
+
+        .action-btn { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; border: 1px solid #e2e8f0; background: white; }
+        .action-btn:hover { transform: scale(1.08); background: #f1f5f9; }
+
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-around; padding: 8px 0; z-index: 40; box-shadow: 0 -2px 8px rgba(0,0,0,0.04); }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; cursor: pointer; color: var(--muted); transition: all 0.2s ease; font-size: 12px; font-weight: 500; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item svg { width: 24px; height: 24px; stroke-width: 1.5; }
+
+        .burger-menu { position: fixed; top: 0; left: 0; right: 0; background: white; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; padding: 16px; z-index: 50; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .burger-icon { width: 28px; height: 28px; cursor: pointer; color: var(--dark); }
+        .burger-icon:hover { color: var(--primary); }
+
+        .search-input { flex: 1; margin: 0 12px; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; background: #f8fafc; transition: all 0.2s ease; }
+        .search-input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+        .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 280px; background: white; z-index: 100; transform: translateX(-100%); transition: transform 0.3s ease; border-right: 1px solid #e2e8f0; overflow-y: auto; padding-top: 60px; box-shadow: 2px 0 8px rgba(0,0,0,0.08); }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .sidebar.open ~ .sidebar-overlay { opacity: 1; pointer-events: auto; }
+
+        .sidebar-item { padding: 16px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s ease; display: flex; align-items: center; gap: 12px; color: var(--dark); font-weight: 500; }
+        .sidebar-item:hover { background: #f8fafc; color: var(--primary); border-left-color: var(--primary); }
+        .sidebar-item svg { width: 20px; height: 20px; }
+
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); display: flex; align-items: flex-end; z-index: 110; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+        .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; }
+
+        .toast { position: fixed; bottom: 100px; left: 16px; right: 16px; background: var(--dark); color: white; padding: 14px 16px; border-radius: 8px; font-size: 14px; z-index: 200; animation: slideUp 0.3s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+        .due-badge { position: absolute; top: -8px; right: -8px; width: 28px; height: 28px; background: #ef4444; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+
+        .fab { position: fixed; bottom: 100px; right: 20px; width: 56px; height: 56px; background: linear-gradient(135deg, var(--primary), #2563eb); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: all 0.2s ease; z-index: 45; }
+        .fab:hover { transform: scale(1.1); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4); }
+        .fab svg { width: 28px; height: 28px; }
+
+        .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .safe-area-top { padding-top: 60px; }
+        .safe-area-bottom { padding-bottom: 80px; }
+
+        .form-input { width: 100%; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; transition: all 0.2s ease; background: #f8fafc; }
+        .form-input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+        .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--dark); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .chip { display: inline-block; background: #f1f5f9; color: var(--dark); padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 500; margin: 4px; }
+
+        .divider { height: 1px; background: #e2e8f0; margin: 12px 0; }
+
+        .status-new { background: #fee2e2; color: #991b1b; }
+        .status-interested { background: #fef3c7; color: #92400e; }
+        .status-qualified { background: #dcfce7; color: #15803d; }
+        .status-proposal { background: #a7f3d0; color: #065f46; }
+        .status-won { background: #06b6d4; color: #164e63; }
+        .status-lost { background: #f3f4f6; color: #374151; }
+
+        .hidden { display: none !important; }
+
+        .spinner { border: 3px solid #f1f5f9; border-top: 3px solid var(--primary); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .badge { display: inline-block; background: #e0e7ff; color: #3730a3; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
+        .btn-primary { background: var(--primary); color: white; padding: 12px 16px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s ease; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-secondary { background: #f1f5f9; color: var(--dark); padding: 12px 16px; border-radius: 8px; font-weight: 600; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.2s ease; }
+        .btn-secondary:hover { background: #e2e8f0; }
+
+        .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+
+        .email-template { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin: 8px 0; cursor: pointer; transition: all 0.2s ease; }
+        .email-template:hover { background: #f8fafc; }
+
+        .llm-response { background: #f0f9ff; border-left: 4px solid var(--primary); padding: 12px; border-radius: 4px; margin: 8px 0; }
+
+        .timeline-item { display: flex; gap: 12px; margin-bottom: 16px; }
+        .timeline-marker { width: 12px; height: 12px; background: var(--primary); border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+        .timeline-content { flex: 1; }
+        .timeline-content p { margin: 0; font-size: 14px; }
+        .timeline-content .time { font-size: 12px; color: var(--muted); }
+
+        @media print { .bottom-nav, .burger-menu, .fab { display: none; } }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- BURGER MENU HEADER -->
+        <div class="burger-menu">
+            <svg class="burger-icon" onclick="toggleSidebar()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+            <div id="header-title" class="brand-title text-xl flex-1 text-center">Nexus CRM</div>
+            <div style="position: relative;">
+                <svg class="burger-icon" onclick="showNotifications()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hidden">0</span>
+            </div>
+        </div>
+
+        <!-- SIDEBAR MENU -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-item" onclick="navigate('about')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>About</span>
+            </div>
+            <div class="sidebar-item" onclick="navigate('help')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>Help</span>
+            </div>
+            <div class="sidebar-item" onclick="navigate('callImport')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>Call Logs</span>
+            </div>
+            <div class="sidebar-item" onclick="navigate('emailTemplates')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                <span>Email Templates</span>
+            </div>
+            <div class="divider"></div>
+            <div class="sidebar-item" onclick="logout()" style="color: var(--danger);">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                <span>Logout</span>
+            </div>
+        </div>
+
+        <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <!-- PAGE CONTAINER -->
+        <div id="pages" class="safe-area-top safe-area-bottom">
+            
+            <!-- HOME PAGE -->
+            <div id="home-page" class="page-view">
+                <div class="px-4 py-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <p class="text-sm text-gray-500">Welcome back</p>
+                            <h2 class="brand-title text-2xl mt-1">Today's Leads</h2>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-semibold text-blue-600" id="lead-count">0 Leads</div>
+                            <div class="text-xs text-gray-500" id="follow-up-count">0 Due</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 flex gap-2">
+                        <input type="text" id="search-box" class="search-input" placeholder="Search leads..." onkeyup="filterLeads()">
+                        <button onclick="toggleFilters()" class="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition">
+                            Filters
+                        </button>
+                    </div>
+
+                    <div class="flex gap-1 mb-6 overflow-x-auto pb-2">
+                        <button class="status-tab px-4 py-2 text-sm font-medium whitespace-nowrap active" data-status="all" onclick="filterByStatus(this)">All</button>
+                        <button class="status-tab px-4 py-2 text-sm font-medium whitespace-nowrap" data-status="new" onclick="filterByStatus(this)">New</button>
+                        <button class="status-tab px-4 py-2 text-sm font-medium whitespace-nowrap" data-status="interested" onclick="filterByStatus(this)">Interested</button>
+                        <button class="status-tab px-4 py-2 text-sm font-medium whitespace-nowrap" data-status="qualified" onclick="filterByStatus(this)">Qualified</button>
+                        <button class="status-tab px-4 py-2 text-sm font-medium whitespace-nowrap" data-status="proposal" onclick="filterByStatus(this)">Proposal</button>
+                        <button class="status-tab px-4 py-2 text-sm font-medium whitespace-nowrap" data-status="won" onclick="filterByStatus(this)">Won</button>
+                    </div>
+
+                    <div id="leads-container" class="space-y-3 pb-6">
+                        <div class="lead-card p-4 skeleton" style="height: 200px;"></div>
+                        <div class="lead-card p-4 skeleton" style="height: 200px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LEAD DETAIL PAGE -->
+            <div id="lead-detail-page" class="page-view hidden">
+                <div class="px-4 py-6" id="lead-detail-content"></div>
+            </div>
+
+            <!-- IMPORT PAGE -->
+            <div id="import-page" class="page-view hidden">
+                <div class="px-4 py-6">
+                    <h2 class="brand-title text-2xl mb-6">Import Leads</h2>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                        <h3 class="font-semibold text-blue-900 mb-2">CSV Format Required</h3>
+                        <p class="text-sm text-blue-800">Name, Email, Phone, City, Keyword, Status, Interest Level, Product</p>
+                    </div>
+
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center mb-4 cursor-pointer hover:border-blue-500 transition" onclick="document.getElementById('csv-file').click()">
+                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <p class="text-gray-600 font-medium">Click to select CSV file</p>
+                        <p class="text-sm text-gray-500">or drag and drop</p>
+                    </div>
+
+                    <input type="file" id="csv-file" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
+
+                    <div id="import-preview" class="hidden mb-4">
+                        <h3 class="font-semibold mb-2">Preview (<span id="preview-count">0</span> rows)</h3>
+                        <div id="preview-table" class="overflow-x-auto bg-white border border-gray-200 rounded-lg"></div>
+                    </div>
+
+                    <div class="flex gap-3 mb-6">
+                        <button onclick="clearImport()" class="flex-1 btn-secondary">Clear</button>
+                        <button onclick="submitImport()" id="import-btn" class="flex-1 btn-primary" disabled>
+                            Import (<span id="import-count">0</span>)
+                        </button>
+                    </div>
+
+                    <div id="import-result" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <h3 class="font-semibold text-green-900 mb-2">Import Successful!</h3>
+                        <p id="import-summary" class="text-sm text-green-800"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TEAM PAGE -->
+            <div id="team-page" class="page-view hidden">
+                <div class="px-4 py-6">
+                    <h2 class="brand-title text-2xl mb-6">Team Performance</h2>
+                    
+                    <div id="team-stats" class="grid grid-cols-2 gap-3 mb-6">
+                        <div class="card">
+                            <p class="text-xs text-gray-500 font-semibold mb-1">TOTAL LEADS</p>
+                            <p class="text-2xl font-bold text-blue-600">0</p>
+                        </div>
+                        <div class="card">
+                            <p class="text-xs text-gray-500 font-semibold mb-1">CONVERSION</p>
+                            <p class="text-2xl font-bold text-green-600">0%</p>
+                        </div>
+                        <div class="card">
+                            <p class="text-xs text-gray-500 font-semibold mb-1">AVG RESPONSE</p>
+                            <p class="text-2xl font-bold text-amber-600">0h</p>
+                        </div>
+                        <div class="card">
+                            <p class="text-xs text-gray-500 font-semibold mb-1">PIPELINE VALUE</p>
+                            <p class="text-2xl font-bold text-purple-600">₹0</p>
+                        </div>
+                    </div>
+
+                    <h3 class="font-semibold mb-3">Team Members</h3>
+                    <div id="team-members" class="space-y-2"></div>
+
+                    <h3 class="font-semibold mt-6 mb-3">Activity Log</h3>
+                    <div id="activity-log" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- SETTINGS PAGE -->
+            <div id="settings-page" class="page-view hidden">
+                <div class="px-4 py-6">
+                    <h2 class="brand-title text-2xl mb-6">Settings</h2>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">User Profile</h3>
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-input" id="user-name" placeholder="Your name">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-input" id="user-email" placeholder="your@email.com">
+                        </div>
+                        <div>
+                            <label class="form-label">Role</label>
+                            <select class="form-input" id="user-role">
+                                <option value="employee">Employee</option>
+                                <option value="team_leader">Team Leader</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">Notifications</h3>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm">Follow-up Reminders</span>
+                            <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" id="notify-followup" checked>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm">Email Sent Confirmations</span>
+                            <input type="checkbox" class="w-5 h-5 text-blue-600 rounded" id="notify-email" checked>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">Email Servers (SMTP)</h3>
+                        <div id="smtp-servers" class="space-y-3 mb-3"></div>
+                        <button onclick="addSMTPServer()" class="w-full btn-secondary">+ Add Server</button>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">AI Assistant (LLM)</h3>
+                        <div class="mb-3">
+                            <label class="form-label">Provider</label>
+                            <select class="form-input" id="llm-provider">
+                                <option value="disabled">Disabled</option>
+                                <option value="gemini">Google Gemini</option>
+                                <option value="groq">Groq</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">API Key</label>
+                            <input type="password" class="form-input" id="llm-key" placeholder="Your API key">
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-2">Offline Mode</h3>
+                        <p class="text-sm text-gray-600 mb-3">Last synced: <span id="last-sync">Never</span></p>
+                        <button onclick="syncNow()" class="w-full btn-primary">Sync Now</button>
+                    </div>
+
+                    <div class="card">
+                        <p class="text-xs text-gray-500">App Version: 1.0.0</p>
+                        <p class="text-xs text-gray-500">Environment: Production</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EMAIL TEMPLATES PAGE -->
+            <div id="email-templates-page" class="page-view hidden">
+                <div class="px-4 py-6">
+                    <h2 class="brand-title text-2xl mb-6">Email Templates</h2>
+
+                    <div id="templates-list" class="space-y-3">
+                        <!-- Templates will be populated here -->
+                    </div>
+
+                    <button onclick="addEmailTemplate()" class="w-full mt-4 btn-primary">+ New Template</button>
+                </div>
+            </div>
+
+            <!-- LLM CO-PILOT PAGE -->
+            <div id="llm-copilot-page" class="page-view hidden">
+                <div class="px-4 py-6">
+                    <h2 class="brand-title text-2xl mb-6">AI Assistant</h2>
+
+                    <div class="card mb-4">
+                        <h3 class="font-semibold mb-3">Generate Letter</h3>
+                        <select class="form-input mb-3" id="llm-lead-select">
+                            <option value="">Select a lead...</option>
+                        </select>
+                        <select class="form-input mb-3" id="llm-product-select">
+                            <option value="">Select product...</option>
+                        </select>
+                        <button onclick="generateLetter()" class="w-full btn-primary">
+                            <span id="gen-btn-text">Generate</span>
+                        </button>
+                    </div>
+
+                    <div id="llm-output" class="hidden card">
+                        <h3 class="font-semibold mb-3">Generated Content</h3>
+                        <div id="llm-content"></div>
+                        <button onclick="copyLLMOutput()" class="w-full mt-3 btn-secondary">Copy to Clipboard</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM NAVIGATION -->
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="navigate('home')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2.239-2.612a.75.75 0 0 1 1.15.043l3.611 5.355a.75.75 0 0 0 1.55-.074l1.575-4.729a.75.75 0 0 1 1.423.049l5.852 7.256V3.75a.75.75 0 0 1 .75-.75H19.5a.75.75 0 0 1 .75.75v10.019A2.25 2.25 0 0 1 21.75 15.75c.193 0 .383-.013.571-.04l4.882-3.273a.75.75 0 0 1 1.304.671l-.604 3.618a.75.75 0 0 0 .738.888h.026a.75.75 0 0 1 0 1.5H1.5a.75.75 0 0 1 0-1.5Z"></path>
+                </svg>
+                <span>Home</span>
+            </div>
+            <div class="nav-item" onclick="navigate('import')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"></path>
+                </svg>
+                <span>Import</span>
+            </div>
+            <div class="nav-item" onclick="navigate('team')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6 6 0 0 1 11.674-3.118Z"></path>
+                </svg>
+                <span>Team</span>
+            </div>
+            <div class="nav-item" onclick="navigate('settings')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.592c.55 0 1.02.398 1.11.94a6.047 6.047 0 0 0 1.366 2.29c.58.569 1.171.77 1.859.835.63.063 1.268.4 1.581.941l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.298.934c-.627.452-.873 1.102-.821 1.77a6.047 6.047 0 0 0 0 2.292c-.052.668.194 1.318.821 1.77l1.298.934a1.125 1.125 0 0 1 .26 1.431l-1.296 2.247c-.313.54-.95.878-1.581.941-.688.064-1.28.266-1.859.835a6.047 6.047 0 0 1-1.366 2.29c-.09.542-.56.94-1.11.94h-2.592c-.55 0-1.02-.398-1.11-.94a6.047 6.047 0 0 1-1.366-2.29c-.578-.569-1.171-.766-1.859-.835a1.125 1.125 0 0 0-.354-.144H9.378c-.63-.063-1.268-.4-1.581-.941l-1.296-2.247a1.125 1.125 0 0 1 .26-1.431l1.298-.934c.627-.452.873-1.102.821-1.77a6.047 6.047 0 0 0 0-2.292c.052-.668-.194-1.318-.821-1.77l-1.298-.934a1.125 1.125 0 0 1-.26-1.431l1.296-2.247c.313-.54.95-.878 1.581-.941.688-.064 1.28-.266 1.859-.835a6.047 6.047 0 0 1 1.366-2.29Z"></path>
+                </svg>
+                <span>Settings</span>
+            </div>
+        </div>
+
+        <!-- FAB Button -->
+        <div class="fab" onclick="showQuickActions()" title="Quick Actions">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m0 0h6m-6-6h-6"></path>
+            </svg>
+        </div>
+
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // ===============================
+        // API CONFIGURATION
+        // ===============================
+        const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwZGIFrZNBBAmd6RXyr_ndFkjQUZEYUMx6WSA-DW70tYFwRM1Kko3mQAWNmKvFjxCH0oQ/exec'; // Replace with your GAS deployment URL
+        const API_VERSION = 'v1';
+
+        // ===============================
+        // STATE & GLOBAL VARIABLES
+        // ===============================
+        const state = {
+            currentPage: 'home',
+            currentLead: null,
+            allLeads: [],
+            filteredLeads: [],
+            filterStatus: 'all',
+            searchQuery: '',
+            user: {
+                id: localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9),
+                name: 'John Doe',
+                email: 'john@example.com',
+                role: 'employee'
+            },
+            offlineMode: !navigator.onLine,
+            lastSync: localStorage.getItem('lastSync') || 'Never',
+            csvData: null,
+            settings: {
+                notifications: { followup: true, email: true },
+                llm: { provider: 'disabled', key: '' },
+                smtp: []
+            },
+            activityLog: [],
+            emailTemplates: [],
+            products: []
+        };
+
+        // Sample data
+        const SAMPLE_LEADS = [
+            { id: 'lead_001', name: 'Rajesh Kumar', email: 'rajesh@example.com', phone: '+91 98765 43210', city: 'Mumbai', keyword: 'Insurance', status: 'new', interestLevel: 7, product: 'Health Insurance', followupDate: new Date(Date.now() + 86400000).toISOString(), notes: 'Interested in family coverage', createdAt: new Date().toISOString() },
+            { id: 'lead_002', name: 'Priya Singh', email: 'priya@example.com', phone: '+91 87654 32109', city: 'Delhi', keyword: 'Mortgage', status: 'interested', interestLevel: 8, product: 'Home Loan', followupDate: null, notes: 'Ready for consultation', createdAt: new Date(Date.now() - 86400000).toISOString() },
+            { id: 'lead_003', name: 'Amit Patel', email: 'amit@example.com', phone: '+91 76543 21098', city: 'Bangalore', keyword: 'Investment', status: 'qualified', interestLevel: 9, product: 'Mutual Funds', followupDate: null, notes: 'High-value prospect', createdAt: new Date(Date.now() - 172800000).toISOString() },
+            { id: 'lead_004', name: 'Sneha Gupta', email: 'sneha@example.com', phone: '+91 65432 10987', city: 'Pune', keyword: 'Education', status: 'proposal', interestLevel: 6, product: 'Education Loan', followupDate: new Date().toISOString(), notes: 'Proposal sent on 2024-03-15', createdAt: new Date(Date.now() - 259200000).toISOString() },
+            { id: 'lead_005', name: 'Vikram Sharma', email: 'vikram@example.com', phone: '+91 54321 09876', city: 'Hyderabad', keyword: 'Auto', status: 'won', interestLevel: 10, product: 'Car Insurance', followupDate: null, notes: 'Closed - Policy #2024-001234', createdAt: new Date(Date.now() - 345600000).toISOString() }
+        ];
+
+        const SAMPLE_TEMPLATES = [
+            { id: 't1', name: 'Initial Contact', subject: 'Interested in {product}?', body: 'Hi {name},\n\nI hope this email finds you well. We have a great {product} solution that might interest you.\n\nBest regards,\n{sender}' },
+            { id: 't2', name: 'Follow-up', subject: 'Following up on our conversation', body: 'Hi {name},\n\nJust wanted to follow up on our recent discussion about {product}. Are you interested in learning more?\n\nBest regards,\n{sender}' },
+            { id: 't3', name: 'Proposal', subject: '{product} Proposal for You', body: 'Hi {name},\n\nPlease find attached our proposal for the {product} solution. We look forward to your feedback.\n\nBest regards,\n{sender}' }
+        ];
+
+        const SAMPLE_PRODUCTS = [
+            { id: 'p1', name: 'Health Insurance', category: 'Insurance', price: '₹500-1500/month' },
+            { id: 'p2', name: 'Home Loan', category: 'Finance', price: '₹20L-1Cr' },
+            { id: 'p3', name: 'Mutual Funds', category: 'Investment', price: 'Variable' },
+            { id: 'p4', name: 'Education Loan', category: 'Finance', price: '₹5L-30L' },
+            { id: 'p5', name: 'Car Insurance', category: 'Insurance', price: '₹5000-15000/year' }
+        ];
+
+        // ===============================
+        // INITIALIZATION
+        // ===============================
+        async function init() {
+            loadFromStorage();
+            if (state.allLeads.length === 0) {
+                state.allLeads = JSON.parse(JSON.stringify(SAMPLE_LEADS));
+                saveToStorage();
+            }
+            state.emailTemplates = SAMPLE_TEMPLATES;
+            state.products = SAMPLE_PRODUCTS;
+            
+            render();
+            registerServiceWorker();
+            syncWithBackend();
+            
+            // Update notification badge
+            updateNotificationBadge();
+            
+            // Listen for online/offline events
+            window.addEventListener('online', () => { state.offlineMode = false; showToast('Back online'); });
+            window.addEventListener('offline', () => { state.offlineMode = true; showToast('Offline mode'); });
+        }
+
+        // ===============================
+        // RENDER & NAVIGATION
+        // ===============================
+        function render() {
+            renderHome();
+        }
+
+        function navigate(page) {
+            state.currentPage = page;
+            closeSidebar();
+            hideAllPages();
+
+            switch (page) {
+                case 'home':
+                    document.getElementById('home-page').classList.remove('hidden');
+                    document.getElementById('header-title').textContent = 'Nexus CRM';
+                    updateNavBar('home');
+                    renderHome();
+                    break;
+                case 'import':
+                    document.getElementById('import-page').classList.remove('hidden');
+                    document.getElementById('header-title').textContent = 'Import';
+                    updateNavBar('import');
+                    break;
+                case 'team':
+                    document.getElementById('team-page').classList.remove('hidden');
+                    document.getElementById('header-title').textContent = 'Team';
+                    updateNavBar('team');
+                    renderTeam();
+                    break;
+                case 'settings':
+                    document.getElementById('settings-page').classList.remove('hidden');
+                    document.getElementById('header-title').textContent = 'Settings';
+                    updateNavBar('settings');
+                    renderSettings();
+                    break;
+                case 'emailTemplates':
+                    document.getElementById('email-templates-page').classList.remove('hidden');
+                    document.getElementById('header-title').textContent = 'Email Templates';
+                    updateNavBar('settings');
+                    renderEmailTemplates();
+                    break;
+                case 'about':
+                    showAbout();
+                    break;
+                case 'help':
+                    showHelp();
+                    break;
+                case 'callImport':
+                    showCallImportModal();
+                    break;
+            }
+        }
+
+        function hideAllPages() {
+            document.querySelectorAll('[id*="-page"]').forEach(p => p.classList.add('hidden'));
+        }
+
+        function updateNavBar(active) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            const pages = ['home', 'import', 'team', 'settings'];
+            document.querySelectorAll('.nav-item').forEach((item, idx) => {
+                if (pages[idx] === active) item.classList.add('active');
+            });
+        }
+
+        // ===============================
+        // HOME PAGE
+        // ===============================
+        function renderHome() {
+            applyFilters();
+            renderLeads();
+            updateStats();
+        }
+
+        function applyFilters() {
+            state.filteredLeads = state.allLeads.filter(lead => {
+                const matchStatus = state.filterStatus === 'all' || lead.status === state.filterStatus;
+                const matchSearch = lead.name.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+                                   lead.email.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+                                   lead.phone.includes(state.searchQuery) ||
+                                   lead.city.toLowerCase().includes(state.searchQuery.toLowerCase());
+                return matchStatus && matchSearch;
+            });
+        }
+
+        function renderLeads() {
+            const container = document.getElementById('leads-container');
+            container.innerHTML = '';
+
+            if (state.filteredLeads.length === 0) {
+                container.innerHTML = `<div class="text-center py-12">
+                    <svg class="w-12 h-12 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                    <p class="text-gray-500 font-medium">No leads found</p>
+                </div>`;
+                return;
+            }
+
+            state.filteredLeads.forEach(lead => {
+                const card = createLeadCard(lead);
+                container.appendChild(card);
+            });
+        }
+
+        function createLeadCard(lead) {
+            const isDue = lead.followupDate && new Date(lead.followupDate) <= new Date();
+            const card = document.createElement('div');
+            card.className = 'lead-card p-4 cursor-pointer relative';
+            card.onclick = () => showLeadDetail(lead);
+
+            const statusClasses = { 'new': 'status-new', 'interested': 'status-interested', 'qualified': 'status-qualified', 'proposal': 'status-proposal', 'won': 'status-won', 'lost': 'status-lost' };
+            const statusLabel = { 'new': 'New', 'interested': 'Interested', 'qualified': 'Qualified', 'proposal': 'Proposal', 'won': 'Won', 'lost': 'Lost' };
+            const interestColor = `interest-${Math.min(10, Math.max(1, lead.interestLevel))}`;
+
+            card.innerHTML = `
+                ${isDue ? '<div class="due-badge">!</div>' : ''}
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-bold text-base">${escapeHTML(lead.name)}</h3>
+                        <p class="text-sm text-gray-500">${escapeHTML(lead.city)}</p>
+                    </div>
+                    <span class="px-2 py-1 rounded text-xs font-semibold ${statusClasses[lead.status] || 'status-new'}">${statusLabel[lead.status] || 'New'}</span>
+                </div>
+
+                <div class="space-y-2 mb-3">
+                    <div class="flex items-center gap-2 text-sm">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                        <span class="cursor-pointer hover:text-blue-600" onclick="copyToClipboard(event, '${lead.email}')">${lead.email}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                        <span class="cursor-pointer hover:text-blue-600" onclick="copyToClipboard(event, '${lead.phone}')">${lead.phone}</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-semibold mb-1">INTEREST</p>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${interestColor}">${lead.interestLevel}/10</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <div class="action-btn" onclick="dialLead(event, '${lead.phone}')"><svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></div>
+                        <div class="action-btn" onclick="whatsappLead(event, '${lead.phone}')"><svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-9.746 9.798c0 2.66.735 5.25 2.124 7.556L2.98 24l8.04-2.36a9.844 9.844 0 004.766 1.223h.005c5.415 0 9.819-4.414 9.819-9.849 0-2.627-.648-5.1-1.88-7.262A9.884 9.884 0 0012.051 6.979Z"></path></svg></div>
+                        <div class="action-btn" onclick="emailLead(event, '${lead.email}')"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg></div>
+                        <div class="action-btn" onclick="mapLead(event, '${lead.city}')"><svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg></div>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function filterLeads() {
+            state.searchQuery = document.getElementById('search-box').value;
+            renderHome();
+        }
+
+        function filterByStatus(btn) {
+            document.querySelectorAll('.status-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            state.filterStatus = btn.dataset.status;
+            renderHome();
+        }
+
+        function updateStats() {
+            const dueLeads = state.allLeads.filter(l => l.followupDate && new Date(l.followupDate) <= new Date());
+            document.getElementById('lead-count').textContent = state.filteredLeads.length + ' Leads';
+            document.getElementById('follow-up-count').textContent = dueLeads.length + ' Due';
+        }
+
+        // ===============================
+        // LEAD DETAIL
+        // ===============================
+        function showLeadDetail(lead) {
+            state.currentLead = lead;
+            document.getElementById('home-page').classList.add('hidden');
+            document.getElementById('lead-detail-page').classList.remove('hidden');
+            document.getElementById('header-title').textContent = lead.name;
+
+            const content = document.getElementById('lead-detail-content');
+            content.innerHTML = `
+                <div class="space-y-4 pb-6">
+                    <div class="card">
+                        <h2 class="font-bold text-xl mb-4">${escapeHTML(lead.name)}</h2>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <label class="text-sm text-gray-600">Email</label>
+                                <button onclick="copyToClipboard(event, '${lead.email}')" class="text-blue-600 text-sm hover:underline">${lead.email}</button>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <label class="text-sm text-gray-600">Phone</label>
+                                <button onclick="copyToClipboard(event, '${lead.phone}')" class="text-blue-600 text-sm hover:underline">${lead.phone}</button>
+                            </div>
+                            <div class="flex justify-between">
+                                <label class="text-sm text-gray-600">City</label>
+                                <span class="text-sm font-medium">${lead.city}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <label class="text-sm text-gray-600">Keyword</label>
+                                <span class="text-sm font-medium">${lead.keyword}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">Product & Interest</h3>
+                        <div class="mb-3">
+                            <p class="text-sm text-gray-600 mb-1">Product</p>
+                            <p class="font-medium">${lead.product}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-2">Interest Level</p>
+                            <div class="flex gap-1">
+                                ${Array.from({length: 10}, (_, i) => `<div style="background: ${i < lead.interestLevel ? 'var(--primary)' : '#e2e8f0'}" class="h-2 flex-1 rounded"></div>`).join('')}
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">${lead.interestLevel}/10</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">Status & Dates</h3>
+                        <div class="mb-3">
+                            <p class="text-sm text-gray-600 mb-1">Current Status</p>
+                            <select onchange="updateLeadStatus(event, '${lead.id}')" class="form-input text-sm">
+                                <option value="new" ${lead.status === 'new' ? 'selected' : ''}>New</option>
+                                <option value="interested" ${lead.status === 'interested' ? 'selected' : ''}>Interested</option>
+                                <option value="qualified" ${lead.status === 'qualified' ? 'selected' : ''}>Qualified</option>
+                                <option value="proposal" ${lead.status === 'proposal' ? 'selected' : ''}>Proposal</option>
+                                <option value="won" ${lead.status === 'won' ? 'selected' : ''}>Won</option>
+                                <option value="lost" ${lead.status === 'lost' ? 'selected' : ''}>Lost</option>
+                            </select>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600 mb-1">Follow-up Date</p>
+                            <input type="date" value="${lead.followupDate ? lead.followupDate.substring(0, 10) : ''}" onchange="updateFollowupDate(event, '${lead.id}')" class="form-input text-sm">
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 class="font-semibold mb-3">Notes</h3>
+                        <textarea onchange="updateNotes(event, '${lead.id}')" class="form-input text-sm" rows="4" placeholder="Add notes...">${lead.notes || ''}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="dialLead(event, '${lead.phone}')" class="btn-primary text-sm">Call</button>
+                        <button onclick="whatsappLead(event, '${lead.phone}')" class="btn-primary text-sm bg-green-600 hover:bg-green-700">WhatsApp</button>
+                        <button onclick="emailLead(event, '${lead.email}')" class="btn-primary text-sm">Email</button>
+                    </div>
+
+                    <button onclick="sendEmailToLead('${lead.id}')" class="w-full btn-secondary">Send Email</button>
+                    <button onclick="generateLLMContent('${lead.id}')" class="w-full btn-secondary">Generate Letter (AI)</button>
+                    <button onclick="backToHome()" class="w-full btn-secondary">Back</button>
+                </div>
+            `;
+        }
+
+        function backToHome() {
+            document.getElementById('lead-detail-page').classList.add('hidden');
+            document.getElementById('home-page').classList.remove('hidden');
+            navigate('home');
+        }
+
+        function updateLeadStatus(event, leadId) {
+            const lead = state.allLeads.find(l => l.id === leadId);
+            if (lead) {
+                lead.status = event.target.value;
+                logActivity(`Status changed to ${event.target.value}`, leadId);
+                saveToStorage();
+                syncToBackend('updateStatus', { leadId, status: lead.status });
+                showToast('Status updated');
+            }
+        }
+
+        function updateFollowupDate(event, leadId) {
+            const lead = state.allLeads.find(l => l.id === leadId);
+            if (lead) {
+                lead.followupDate = event.target.value ? new Date(event.target.value).toISOString() : null;
+                saveToStorage();
+                showToast('Follow-up date updated');
+            }
+        }
+
+        function updateNotes(event, leadId) {
+            const lead = state.allLeads.find(l => l.id === leadId);
+            if (lead) {
+                lead.notes = event.target.value;
+                saveToStorage();
+            }
+        }
+
+        // ===============================
+        // CONTACT ACTIONS
+        // ===============================
+        function dialLead(event, phone) {
+            event.stopPropagation();
+            logActivity('Call initiated', state.currentLead?.id);
+            window.location.href = `tel:${phone}`;
+        }
+
+        function whatsappLead(event, phone) {
+            event.stopPropagation();
+            const cleanPhone = phone.replace(/\s+/g, '').replace(/[\-()]/g, '');
+            window.open(`https://wa.me/${cleanPhone}`, '_blank');
+        }
+
+        function emailLead(event, email) {
+            event.stopPropagation();
+            window.location.href = `mailto:${email}`;
+        }
+
+        function mapLead(event, city) {
+            event.stopPropagation();
+            window.open(`https://maps.google.com/?q=${encodeURIComponent(city)}`, '_blank');
+        }
+
+        function copyToClipboard(event, text) {
+            event.stopPropagation();
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('Copied!');
+            });
+        }
+
+        // ===============================
+        // IMPORT
+        // ===============================
+
+        /**
+         * Parse CSV with proper quote handling
+         * RFC 4180 compliant
+         * Handles quoted fields with commas, escaped quotes, and newlines
+         */
+        function parseCSVProper(csvText) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let insideQuotes = false;
+            
+            for (let i = 0; i < csvText.length; i++) {
+                const char = csvText[i];
+                const nextChar = csvText[i + 1];
+                
+                // Handle quotes
+                if (char === '"') {
+                    if (insideQuotes && nextChar === '"') {
+                        // Escaped quote: "" → "
+                        currentField += '"';
+                        i++; // Skip next quote
+                    } else {
+                        // Toggle quote state
+                        insideQuotes = !insideQuotes;
+                    }
+                }
+                // Handle comma (field delimiter)
+                else if (char === ',' && !insideQuotes) {
+                    currentRow.push(currentField.trim());
+                    currentField = '';
+                }
+                // Handle newline (row delimiter)
+                else if ((char === '\n' || char === '\r') && !insideQuotes) {
+                    if (currentField || currentRow.length > 0) {
+                        currentRow.push(currentField.trim());
+                        if (currentRow.some(field => field)) { // Only add non-empty rows
+                            rows.push(currentRow);
+                        }
+                        currentRow = [];
+                        currentField = '';
+                    }
+                    // Skip \r\n combination
+                    if (char === '\r' && nextChar === '\n') {
+                        i++;
+                    }
+                }
+                // Regular character
+                else {
+                    currentField += char;
+                }
+            }
+            
+            // Add last field and row
+            if (currentField || currentRow.length > 0) {
+                currentRow.push(currentField.trim());
+                if (currentRow.some(field => field)) {
+                    rows.push(currentRow);
+                }
+            }
+            
+            return rows;
+        }
+
+        function handleCSVImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => parseCSV(e.target.result);
+            reader.readAsText(file);
+        }
+
+        function parseCSV(csv) {
+            // Use proper CSV parser that handles quoted fields
+            const rows = parseCSVProper(csv);
+            
+            if (rows.length === 0) {
+                showToast('Invalid CSV file');
+                return;
+            }
+
+            // Extract headers from first row
+            const headers = rows[0].map(h => h.toLowerCase());
+            const data = [];
+
+            // Convert array rows to objects
+            for (let i = 1; i < rows.length; i++) {
+                const values = rows[i];
+                const obj = {};
+                headers.forEach((h, idx) => obj[h] = values[idx] || '');
+                data.push(obj);
+            }
+
+            state.csvData = data;
+            displayCSVPreview(data);
+            document.getElementById('import-count').textContent = data.length;
+            document.getElementById('import-btn').disabled = false;
+        }
+
+        function displayCSVPreview(data) {
+            const table = document.getElementById('preview-table');
+            const count = document.getElementById('preview-count');
+            count.textContent = data.length;
+            table.innerHTML = '';
+
+            if (data.length === 0) return;
+            const thead = document.createElement('thead');
+            thead.innerHTML = `<tr class="bg-gray-100 border-b">${Object.keys(data[0]).map(key => `<th class="px-3 py-2 text-left text-xs font-semibold">${key}</th>`).join('')}</tr>`;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            data.slice(0, 5).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b hover:bg-gray-50';
+                tr.innerHTML = Object.values(row).map(val => `<td class="px-3 py-2 text-sm">${val}</td>`).join('');
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            document.getElementById('import-preview').classList.remove('hidden');
+        }
+
+        function submitImport() {
+            if (!state.csvData) {
+                showToast('No CSV data');
+                return;
+            }
+
+            const newLeads = state.csvData.map((row, idx) => ({
+                id: 'lead_' + Date.now() + '_' + idx,
+                name: row.name || '',
+                email: row.email || '',
+                phone: row.phone || '',
+                city: row.city || '',
+                keyword: row.keyword || '',
+                status: (row.status || 'new').toLowerCase(),
+                interestLevel: parseInt(row['interest level'] || 5),
+                product: row.product || '',
+                followupDate: null,
+                notes: '',
+                createdAt: new Date().toISOString()
+            }));
+
+            newLeads.forEach(newLead => {
+                const existingIdx = state.allLeads.findIndex(l => l.email === newLead.email || l.phone === newLead.phone);
+                if (existingIdx >= 0) {
+                    if (state.allLeads[existingIdx].status === 'new') {
+                        Object.assign(state.allLeads[existingIdx], newLead);
+                    } else {
+                        newLead.conflictFlag = true;
+                        state.allLeads.push(newLead);
+                    }
+                } else {
+                    state.allLeads.push(newLead);
+                }
+            });
+
+            saveToStorage();
+            syncToBackend('importCSV', { leads: newLeads });
+            showToast(`Imported ${newLeads.length} leads`);
+            document.getElementById('import-result').classList.remove('hidden');
+            clearImport();
+        }
+
+        function clearImport() {
+            state.csvData = null;
+            document.getElementById('csv-file').value = '';
+            document.getElementById('import-preview').classList.add('hidden');
+        }
+
+        // ===============================
+        // TEAM PAGE
+        // ===============================
+        function renderTeam() {
+            const won = state.allLeads.filter(l => l.status === 'won').length;
+            const total = state.allLeads.length;
+            const conversion = total > 0 ? ((won / total) * 100).toFixed(1) : 0;
+
+            const stats = document.getElementById('team-stats');
+            stats.innerHTML = `
+                <div class="card"><p class="text-xs text-gray-500 font-semibold mb-1">TOTAL LEADS</p><p class="text-2xl font-bold text-blue-600">${total}</p></div>
+                <div class="card"><p class="text-xs text-gray-500 font-semibold mb-1">CONVERSION</p><p class="text-2xl font-bold text-green-600">${conversion}%</p></div>
+                <div class="card"><p class="text-xs text-gray-500 font-semibold mb-1">AVG RESPONSE</p><p class="text-2xl font-bold text-amber-600">0h</p></div>
+                <div class="card"><p class="text-xs text-gray-500 font-semibold mb-1">PIPELINE VALUE</p><p class="text-2xl font-bold text-purple-600">₹0</p></div>
+            `;
+
+            const members = document.getElementById('team-members');
+            members.innerHTML = `<div class="card">
+                <div class="flex items-center justify-between">
+                    <div><p class="font-semibold">${state.user.name}</p><p class="text-xs text-gray-500 capitalize">${state.user.role}</p></div>
+                    <div class="text-right"><p class="text-sm font-bold text-blue-600">${total} Leads</p><p class="text-xs text-gray-500">${won} Won</p></div>
+                </div>
+            </div>`;
+
+            const activityList = document.getElementById('activity-log');
+            activityList.innerHTML = state.activityLog.slice(-5).reverse().map(log => `
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-content">
+                        <p>${escapeHTML(log.action)}</p>
+                        <p class="time">${new Date(log.timestamp).toLocaleString()}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===============================
+        // SETTINGS
+        // ===============================
+        function renderSettings() {
+            document.getElementById('user-name').value = state.user.name;
+            document.getElementById('user-email').value = state.user.email;
+            document.getElementById('user-role').value = state.user.role;
+            document.getElementById('last-sync').textContent = state.lastSync;
+
+            const smtpDiv = document.getElementById('smtp-servers');
+            smtpDiv.innerHTML = state.settings.smtp.map((smtp, idx) => `
+                <div class="p-2 bg-gray-50 rounded border border-gray-200 flex justify-between items-center">
+                    <div><p class="font-semibold text-sm">${smtp.name}</p><p class="text-xs text-gray-500">${smtp.host}</p></div>
+                    <button onclick="removeSMTPServer(${idx})" class="text-red-600 hover:text-red-800">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function addSMTPServer() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h3 class="font-bold text-lg mb-4">Add SMTP Server</h3>
+                <div class="space-y-3 mb-4">
+                    <div><label class="form-label">Server Name</label><input type="text" id="smtp-name" class="form-input" placeholder="Gmail"></div>
+                    <div><label class="form-label">Host</label><input type="text" id="smtp-host" class="form-input" placeholder="smtp.gmail.com"></div>
+                    <div><label class="form-label">Port</label><input type="number" id="smtp-port" class="form-input" value="587"></div>
+                    <div><label class="form-label">Email</label><input type="email" id="smtp-email" class="form-input"></div>
+                    <div><label class="form-label">Password</label><input type="password" id="smtp-password" class="form-input"></div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="this.closest('.modal').remove()" class="flex-1 btn-secondary">Cancel</button>
+                    <button onclick="saveSMTPServer()" class="flex-1 btn-primary">Save</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function saveSMTPServer() {
+            const name = document.getElementById('smtp-name').value;
+            const host = document.getElementById('smtp-host').value;
+            const port = document.getElementById('smtp-port').value;
+            const email = document.getElementById('smtp-email').value;
+
+            if (!name || !host || !email) {
+                showToast('Fill all fields');
+                return;
+            }
+
+            state.settings.smtp.push({ name, host, port, email });
+            saveToStorage();
+            showToast('SMTP added');
+            document.querySelector('.modal').remove();
+            renderSettings();
+        }
+
+        function removeSMTPServer(idx) {
+            state.settings.smtp.splice(idx, 1);
+            saveToStorage();
+            renderSettings();
+        }
+
+        function syncNow() {
+            showToast('Syncing...');
+            setTimeout(() => {
+                state.lastSync = new Date().toLocaleString();
+                localStorage.setItem('lastSync', state.lastSync);
+                document.getElementById('last-sync').textContent = state.lastSync;
+                showToast('Sync complete!');
+            }, 1500);
+        }
+
+        // ===============================
+        // EMAIL TEMPLATES
+        // ===============================
+        function renderEmailTemplates() {
+            const container = document.getElementById('templates-list');
+            container.innerHTML = state.emailTemplates.map(t => `
+                <div class="email-template" onclick="editTemplate('${t.id}')">
+                    <p class="font-semibold text-sm">${t.name}</p>
+                    <p class="text-xs text-gray-600">${t.subject}</p>
+                </div>
+            `).join('');
+        }
+
+        function editTemplate(id) {
+            const template = state.emailTemplates.find(t => t.id === id);
+            if (!template) return;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h3 class="font-bold text-lg mb-4">Edit Template</h3>
+                <div class="space-y-3 mb-4">
+                    <div><label class="form-label">Name</label><input type="text" id="tpl-name" class="form-input" value="${template.name}"></div>
+                    <div><label class="form-label">Subject</label><input type="text" id="tpl-subject" class="form-input" value="${template.subject}"></div>
+                    <div><label class="form-label">Body</label><textarea id="tpl-body" class="form-input" rows="6">${template.body}</textarea></div>
+                    <p class="text-xs text-gray-500">Use {name}, {product}, {sender} as placeholders</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="this.closest('.modal').remove()" class="flex-1 btn-secondary">Cancel</button>
+                    <button onclick="updateTemplate('${id}')" class="flex-1 btn-primary">Save</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function updateTemplate(id) {
+            const idx = state.emailTemplates.findIndex(t => t.id === id);
+            if (idx >= 0) {
+                state.emailTemplates[idx].name = document.getElementById('tpl-name').value;
+                state.emailTemplates[idx].subject = document.getElementById('tpl-subject').value;
+                state.emailTemplates[idx].body = document.getElementById('tpl-body').value;
+                saveToStorage();
+                renderEmailTemplates();
+                document.querySelector('.modal').remove();
+                showToast('Template updated');
+            }
+        }
+
+        function addEmailTemplate() {
+            const newTemplate = {
+                id: 'tpl_' + Date.now(),
+                name: 'New Template',
+                subject: 'Subject here',
+                body: 'Body here'
+            };
+            state.emailTemplates.push(newTemplate);
+            saveToStorage();
+            editTemplate(newTemplate.id);
+        }
+
+        // ===============================
+        // EMAIL SEND
+        // ===============================
+        function sendEmailToLead(leadId) {
+            const lead = state.allLeads.find(l => l.id === leadId);
+            if (!lead) return;
+
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h3 class="font-bold text-lg mb-4">Send Email to ${lead.name}</h3>
+                <div class="space-y-3 mb-4">
+                    <div><label class="form-label">Template</label>
+                        <select id="template-select" class="form-input">
+                            <option value="">-- Choose Template --</option>
+                            ${state.emailTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div><label class="form-label">To</label><input type="email" class="form-input" value="${lead.email}" readonly></div>
+                    <div><label class="form-label">Subject</label><input type="text" id="email-subject" class="form-input"></div>
+                    <div><label class="form-label">Body</label><textarea id="email-body" class="form-input" rows="6" placeholder="Write your message..."></textarea></div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="this.closest('.modal').remove()" class="flex-1 btn-secondary">Cancel</button>
+                    <button onclick="doSendEmail('${lead.id}')" class="flex-1 btn-primary">Send</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+
+            document.getElementById('template-select').addEventListener('change', (e) => {
+                if (e.target.value) {
+                    const tpl = state.emailTemplates.find(t => t.id === e.target.value);
+                    document.getElementById('email-subject').value = tpl.subject.replace('{product}', lead.product);
+                    document.getElementById('email-body').value = tpl.body.replace('{name}', lead.name).replace('{product}', lead.product).replace('{sender}', state.user.name);
+                }
+            });
+        }
+
+        function doSendEmail(leadId) {
+            const subject = document.getElementById('email-subject').value;
+            const body = document.getElementById('email-body').value;
+            const lead = state.allLeads.find(l => l.id === leadId);
+
+            if (!subject || !body) {
+                showToast('Fill all fields');
+                return;
+            }
+
+            showToast('Sending email...');
+            syncToBackend('sendEmail', { leadId, subject, body, to: lead.email });
+            logActivity(`Email sent to ${lead.name}`, leadId);
+            document.querySelector('.modal').remove();
+
+            setTimeout(() => {
+                showToast('Email sent!');
+                updateLeadStatus({ target: { value: 'interested' } }, leadId);
+            }, 1000);
+        }
+
+        // ===============================
+        // LLM CO-PILOT
+        // ===============================
+        function generateLLMContent(leadId) {
+            const lead = state.allLeads.find(l => l.id === leadId);
+            if (!lead || state.settings.llm.provider === 'disabled') {
+                showToast('LLM not configured');
+                return;
+            }
+
+            showToast('Generating...');
+            const prompt = `Draft a professional personalized letter for ${lead.name} about our ${lead.product} offering. Keep it concise and persuasive.`;
+
+            syncToBackend('generateContent', { prompt, leadId });
+
+            // Simulate LLM response
+            setTimeout(() => {
+                const sample = `Dear ${lead.name},\n\nWe are excited to present our premium ${lead.product} solution tailored specifically for your needs.\n\nWith our competitive rates and comprehensive coverage, you'll enjoy peace of mind knowing you're protected. Based on your interest level, we believe this is an ideal fit.\n\nWould you like to schedule a consultation?\n\nBest regards,\n${state.user.name}`;
+
+                const output = document.getElementById('llm-output');
+                document.getElementById('llm-content').innerHTML = `<p class="llm-response">${escapeHTML(sample)}</p>`;
+                output.classList.remove('hidden');
+                showToast('Content generated!');
+            }, 1500);
+        }
+
+        function copyLLMOutput() {
+            const content = document.getElementById('llm-content').textContent;
+            navigator.clipboard.writeText(content);
+            showToast('Copied!');
+        }
+
+        // ===============================
+        // CALL LOGS
+        // ===============================
+        function showCallImportModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h3 class="font-bold text-xl mb-4">Call Logs</h3>
+                <div class="space-y-3 mb-4">
+                    <div><label class="form-label">Select Lead</label>
+                        <select id="call-lead" class="form-input">
+                            <option value="">-- Choose Lead --</option>
+                            ${state.allLeads.map(l => `<option value="${l.id}">${l.name} (${l.phone})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div><label class="form-label">Duration (minutes)</label><input type="number" id="call-duration" class="form-input" placeholder="5"></div>
+                    <div><label class="form-label">Call Date</label><input type="datetime-local" id="call-date" class="form-input"></div>
+                    <div><label class="form-label">Notes</label><textarea id="call-notes" class="form-input" rows="3" placeholder="Summary of the call..."></textarea></div>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="this.closest('.modal').remove()" class="flex-1 btn-secondary">Cancel</button>
+                    <button onclick="saveCallLog()" class="flex-1 btn-primary">Save</button>
+                </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function saveCallLog() {
+            const leadId = document.getElementById('call-lead').value;
+            const duration = parseInt(document.getElementById('call-duration').value);
+            const date = document.getElementById('call-date').value;
+            const notes = document.getElementById('call-notes').value;
+
+            if (!leadId || !duration || !date) {
+                showToast('Fill required fields');
+                return;
+            }
+
+            const log = { leadId, duration, timestamp: new Date(date).toISOString(), notes };
+            syncToBackend('syncLogs', { logs: [log] });
+            logActivity(`Call logged (${duration}min)`, leadId);
+            showToast('Call log saved');
+            document.querySelector('.modal').remove();
+        }
+
+        // ===============================
+        // QUICK ACTIONS FAB
+        // ===============================
+        function showQuickActions() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h3 class="font-bold text-lg mb-4">Quick Actions</h3>
+                <div class="space-y-2">
+                    <button onclick="navigate('import'); this.closest('.modal').remove();" class="w-full text-left p-3 hover:bg-gray-100 rounded">📊 Import Leads</button>
+                    <button onclick="navigate('callImport'); this.closest('.modal').remove();" class="w-full text-left p-3 hover:bg-gray-100 rounded">📞 Log Call</button>
+                    <button onclick="showCallImportModal(); this.closest('.modal').remove();" class="w-full text-left p-3 hover:bg-gray-100 rounded">📋 Call Logs</button>
+                    <button onclick="navigate('emailTemplates'); this.closest('.modal').remove();" class="w-full text-left p-3 hover:bg-gray-100 rounded">✉️ Email Templates</button>
+                </div>
+                <button onclick="this.closest('.modal').remove()" class="w-full mt-4 btn-secondary">Close</button>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        // ===============================
+        // SIDEBAR & MODALS
+        // ===============================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+
+        function showAbout() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h2 class="brand-title text-2xl mb-4">About Nexus CRM</h2>
+                <div class="space-y-3">
+                    <p class="text-gray-600"><strong>Version:</strong> 2.0.0</p>
+                    <p class="text-gray-600"><strong>Built with:</strong> Google Apps Script, HTML5, Tailwind CSS</p>
+                    <p class="text-gray-600"><strong>Features:</strong> Serverless Backend, Offline-First, LLM Integration</p>
+                    <p class="text-sm text-gray-500 mt-4">A complete CRM system for mobile-first sales teams with AI-powered features.</p>
+                </div>
+                <button onclick="this.closest('.modal').remove()" class="w-full mt-4 btn-secondary">Close</button>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function showHelp() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h2 class="brand-title text-2xl mb-4">Help</h2>
+                <div class="space-y-3 text-sm text-gray-600">
+                    <div><h3 class="font-semibold text-gray-800 mb-1">Import Format</h3><p class="font-mono text-xs bg-gray-100 p-2 rounded">Name,Email,Phone,City,Keyword,Status,Interest,Product</p></div>
+                    <div><h3 class="font-semibold text-gray-800 mb-1">Features</h3><ul class="list-disc list-inside"><li>Real-time lead management</li><li>Email templates & automation</li><li>Call log integration</li><li>AI-powered content generation</li></ul></div>
+                </div>
+                <button onclick="this.closest('.modal').remove()" class="w-full mt-4 btn-secondary">Close</button>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function showNotifications() {
+            const dueLead = state.allLeads.filter(l => l.followupDate && new Date(l.followupDate) <= new Date());
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `<div class="modal-content">
+                <h2 class="brand-title text-xl mb-4">Notifications</h2>
+                <div id="notifications-list" class="space-y-2">
+                    ${dueLead.map(l => `<div class="bg-red-50 border border-red-200 rounded-lg p-3"><p class="font-semibold text-red-900">${l.name}</p><p class="text-xs text-red-700">Follow-up due</p></div>`).join('') || '<p class="text-gray-500">No notifications</p>'}
+                </div>
+                <button onclick="this.closest('.modal').remove()" class="w-full mt-4 btn-secondary">Close</button>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+
+        function updateNotificationBadge() {
+            const dueLead = state.allLeads.filter(l => l.followupDate && new Date(l.followupDate) <= new Date());
+            const badge = document.getElementById('notification-badge');
+            if (dueLead.length > 0) {
+                badge.textContent = dueLead.length;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function toggleFilters() {
+            alert('Advanced filters coming soon');
+        }
+
+        // ===============================
+        // ACTIVITY LOG
+        // ===============================
+        function logActivity(action, leadId = null) {
+            state.activityLog.push({
+                action: leadId ? `${action} - ${state.allLeads.find(l => l.id === leadId)?.name}` : action,
+                leadId,
+                timestamp: new Date().toISOString()
+            });
+            saveToStorage();
+        }
+
+        // ===============================
+        // BACKEND SYNC
+        // ===============================
+        async function syncWithBackend() {
+            if (state.offlineMode) return;
+
+            try {
+                const response = await fetch(GAS_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'sync',
+                        userId: state.user.id,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        state.lastSync = new Date().toLocaleString();
+                        saveToStorage();
+                    }
+                }
+            } catch (err) {
+                console.log('Sync failed (offline):', err);
+            }
+        }
+
+        async function syncToBackend(action, payload) {
+            if (state.offlineMode) {
+                showToast('Queued for sync');
+                return;
+            }
+
+            try {
+                const response = await fetch(GAS_ENDPOINT, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action,
+                        userId: state.user.id,
+                        payload,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    return data;
+                }
+            } catch (err) {
+                console.log('Backend sync failed:', err);
+            }
+        }
+
+        // ===============================
+        // STORAGE
+        // ===============================
+        function saveToStorage() {
+            localStorage.setItem('crm_leads', JSON.stringify(state.allLeads));
+            localStorage.setItem('crm_user', JSON.stringify(state.user));
+            localStorage.setItem('crm_settings', JSON.stringify(state.settings));
+            localStorage.setItem('crm_activity', JSON.stringify(state.activityLog));
+            localStorage.setItem('userId', state.user.id);
+        }
+
+        function loadFromStorage() {
+            const leads = localStorage.getItem('crm_leads');
+            const user = localStorage.getItem('crm_user');
+            const settings = localStorage.getItem('crm_settings');
+            const activity = localStorage.getItem('crm_activity');
+
+            if (leads) state.allLeads = JSON.parse(leads);
+            if (user) state.user = JSON.parse(user);
+            if (settings) state.settings = JSON.parse(settings);
+            if (activity) state.activityLog = JSON.parse(activity);
+        }
+
+        // ===============================
+        // UTILITIES
+        // ===============================
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function escapeHTML(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function logout() {
+            if (confirm('Logout?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        function registerServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('data:application/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZXZlbnQgPT4geyBzZWxmLnNraXBXYWl0aW5nKCk7IH0pOyBzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2FjdGl2YXRlJywgZXZlbnQgPT4geyBzZWxmLmNsaWVudHMuY2xhaW0oKTsgfSk7') .catch(err => console.log('SW failed:', err));
+            }
+        }
+
+        window.addEventListener('load', init);
+		
+    </script>
+	
+	<script src="frontend_enhancements_v3.js"></script>
+</body>
+</html>

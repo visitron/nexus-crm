@@ -1,0 +1,28 @@
+# Development and build files
+Code_v3.gs
+csv_parse_fix.js
+FINAL_CHECKLIST.md
+INTEGRATION_GUIDE_v3.md
+v3_SUMMARY.txt
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Node modules and dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Log files
+*.log
