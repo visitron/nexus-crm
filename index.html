@@ -948,21 +948,23 @@
         function parseCSV(csv) {
             // Use proper CSV parser that handles quoted fields
             const rows = parseCSVProper(csv);
-            
+
             if (rows.length === 0) {
                 showToast('Invalid CSV file');
                 return;
             }
 
-            // Extract headers from first row
-            const headers = rows[0].map(h => h.toLowerCase());
+            // Keep original header text (trimmed) and map dynamically later
+            const headers = rows[0].map(h => (h || '').trim());
             const data = [];
 
             // Convert array rows to objects
             for (let i = 1; i < rows.length; i++) {
                 const values = rows[i];
                 const obj = {};
-                headers.forEach((h, idx) => obj[h] = values[idx] || '');
+                headers.forEach((h, idx) => {
+                    if (h) obj[h] = values[idx] || '';
+                });
                 data.push(obj);
             }
 
@@ -970,6 +972,120 @@
             displayCSVPreview(data);
             document.getElementById('import-count').textContent = data.length;
             document.getElementById('import-btn').disabled = false;
+        }
+
+        const IMPORT_FIELD_ALIASES = {
+            id: ['serial number', 'lead_id', 'lead id', 'id'],
+            name: ['company name', 'name', 'school name'],
+            email1: ['email1', 'email', 'primary email'],
+            email2: ['email2', 'secondary email', 'alternate email'],
+            phone: ['phone', 'mobile', 'contact_person_mobile', 'contact person mobile'],
+            city: ['city'],
+            state: ['state'],
+            category: ['category'],
+            website: ['website', 'url'],
+            keyword: ['keyword', 'product', 'products_interested'],
+            location: ['location'],
+            address: ['address'],
+            pincode: ['pincode', 'postal code'],
+            country: ['country'],
+            rating: ['rating', 'interest_level', 'interest level'],
+            reviewCount: ['review count', 'review_count'],
+            latitude: ['latitude', 'lat'],
+            longitude: ['longitude', 'lng', 'lon'],
+            description: ['description', 'notes'],
+            maplink: ['maplink', 'map link'],
+            googleUrl: ['googleurl', 'google url'],
+            designation: ['designation'],
+            contact_person: ['contact_person', 'contact person'],
+            contactPersonMobile: ['contact_person_mobile', 'contact person mobile'],
+            card_scan_url: ['card_scan_url', 'card scan url'],
+            linkedin: ['linkedin'],
+            facebook: ['facebook'],
+            instagram: ['instagram']
+        };
+
+        function normalizeImportHeader(header) {
+            return String(header || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function getImportedValue(row, aliases) {
+            const normalizedMap = {};
+            Object.keys(row || {}).forEach(k => {
+                normalizedMap[normalizeImportHeader(k)] = row[k];
+            });
+            for (const alias of aliases) {
+                const key = normalizeImportHeader(alias);
+                if (normalizedMap[key] !== undefined && normalizedMap[key] !== '') {
+                    return normalizedMap[key];
+                }
+            }
+            return '';
+        }
+
+        function mapImportRowToLead(row, idx) {
+            const nowIso = new Date().toISOString();
+            const ratingValue = parseFloat(getImportedValue(row, IMPORT_FIELD_ALIASES.rating));
+            const reviewValue = parseInt(getImportedValue(row, IMPORT_FIELD_ALIASES.reviewCount), 10);
+
+            const lead = {
+                id: getImportedValue(row, IMPORT_FIELD_ALIASES.id) || 'lead_' + Date.now() + '_' + idx,
+                name: getImportedValue(row, IMPORT_FIELD_ALIASES.name),
+                email1: getImportedValue(row, IMPORT_FIELD_ALIASES.email1),
+                email: getImportedValue(row, IMPORT_FIELD_ALIASES.email1),
+                email2: getImportedValue(row, IMPORT_FIELD_ALIASES.email2),
+                phone: getImportedValue(row, IMPORT_FIELD_ALIASES.phone),
+                city: getImportedValue(row, IMPORT_FIELD_ALIASES.city),
+                state: getImportedValue(row, IMPORT_FIELD_ALIASES.state),
+                category: getImportedValue(row, IMPORT_FIELD_ALIASES.category),
+                website: getImportedValue(row, IMPORT_FIELD_ALIASES.website),
+                keyword: getImportedValue(row, IMPORT_FIELD_ALIASES.keyword),
+                location: getImportedValue(row, IMPORT_FIELD_ALIASES.location),
+                address: getImportedValue(row, IMPORT_FIELD_ALIASES.address),
+                pincode: getImportedValue(row, IMPORT_FIELD_ALIASES.pincode),
+                country: getImportedValue(row, IMPORT_FIELD_ALIASES.country),
+                rating: isNaN(ratingValue) ? 0 : ratingValue,
+                reviewCount: isNaN(reviewValue) ? 0 : reviewValue,
+                latitude: getImportedValue(row, IMPORT_FIELD_ALIASES.latitude),
+                longitude: getImportedValue(row, IMPORT_FIELD_ALIASES.longitude),
+                description: getImportedValue(row, IMPORT_FIELD_ALIASES.description),
+                maplink: getImportedValue(row, IMPORT_FIELD_ALIASES.maplink),
+                googleUrl: getImportedValue(row, IMPORT_FIELD_ALIASES.googleUrl),
+                designation: getImportedValue(row, IMPORT_FIELD_ALIASES.designation),
+                contact_person: getImportedValue(row, IMPORT_FIELD_ALIASES.contact_person),
+                contactPerson: getImportedValue(row, IMPORT_FIELD_ALIASES.contact_person),
+                contactPersonMobile: getImportedValue(row, IMPORT_FIELD_ALIASES.contactPersonMobile),
+                card_scan_url: getImportedValue(row, IMPORT_FIELD_ALIASES.card_scan_url),
+                linkedin: getImportedValue(row, IMPORT_FIELD_ALIASES.linkedin),
+                facebook: getImportedValue(row, IMPORT_FIELD_ALIASES.facebook),
+                instagram: getImportedValue(row, IMPORT_FIELD_ALIASES.instagram),
+                status: 'new',
+                interestLevel: isNaN(ratingValue) ? 0 : Math.max(0, Math.min(10, Math.round(ratingValue))),
+                product: getImportedValue(row, IMPORT_FIELD_ALIASES.keyword),
+                productsInterested: getImportedValue(row, IMPORT_FIELD_ALIASES.keyword),
+                notes: getImportedValue(row, IMPORT_FIELD_ALIASES.description),
+                company_name: getImportedValue(row, IMPORT_FIELD_ALIASES.name),
+                companyName: getImportedValue(row, IMPORT_FIELD_ALIASES.name),
+                createdAt: nowIso
+            };
+
+            const recognizedKeys = new Set();
+            Object.values(IMPORT_FIELD_ALIASES).forEach(aliasList => {
+                aliasList.forEach(alias => recognizedKeys.add(normalizeImportHeader(alias)));
+            });
+
+            const extraFields = {};
+            Object.keys(row || {}).forEach(k => {
+                const normalized = normalizeImportHeader(k);
+                if (!recognizedKeys.has(normalized) && row[k] !== '') {
+                    extraFields[k] = row[k];
+                }
+            });
+            if (Object.keys(extraFields).length > 0) {
+                lead.extraFields = extraFields;
+            }
+
+            return lead;
         }
 
         function displayCSVPreview(data) {
@@ -1001,37 +1117,7 @@
                 return;
             }
 
-            const newLeads = state.csvData.map((row, idx) => {
-                // Helper to access fields case-insensitively
-                const getField = (fieldName) => {
-                    for (let key in row) {
-                        if (key.toLowerCase() === fieldName.toLowerCase()) {
-                            return row[key] || '';
-                        }
-                    }
-                    return '';
-                };
-
-                return {
-                    id: getField('serial number') || 'lead_' + Date.now() + '_' + idx,
-                    name: getField('company name') || getField('name') || '',
-                    email1: getField('email1') || getField('email') || '',
-                    email2: getField('email2') || '',
-                    phone: getField('phone') || getField('contact_person_mobile') || '',
-                    city: getField('city') || '',
-                    state: getField('state') || '',
-                    keyword: getField('keyword') || getField('product') || '',
-                    category: getField('category') || '',
-                    website: getField('website') || '',
-                    status: 'new',
-                    interestLevel: parseInt(getField('rating') || 0),
-                    product: getField('keyword') || '',
-                    notes: getField('description') || getField('notes') || '',
-                    contact_person: getField('contact_person') || '',
-                    company_name: getField('company name') || getField('name') || '',
-                    createdAt: new Date().toISOString()
-                };
-            });
+            const newLeads = state.csvData.map((row, idx) => mapImportRowToLead(row, idx));
 
             // Validate and filter out completely empty rows
             const validLeads = newLeads.filter(lead => lead.name || lead.email1 || lead.phone);
@@ -1042,10 +1128,11 @@
             }
 
             validLeads.forEach(newLead => {
-                const email = newLead.email1 || newLead.email2;
+                const email = String(newLead.email1 || newLead.email2 || newLead.email || '').trim().toLowerCase();
+                const incomingPhone = String(newLead.phone || '').replace(/\D/g, '');
                 const existingIdx = state.allLeads.findIndex(l => 
-                    (email && (l.email === email || l.email === newLead.email1 || l.email === newLead.email2)) ||
-                    (newLead.phone && l.phone === newLead.phone)
+                    (email && [l.email, l.email1, l.email2].some(e => String(e || '').trim().toLowerCase() === email)) ||
+                    (incomingPhone && String(l.phone || '').replace(/\D/g, '') === incomingPhone)
                 );
                 
                 if (existingIdx >= 0) {
@@ -1061,7 +1148,10 @@
             });
 
             saveToStorage();
-            syncToBackend('importCSV', { leads: validLeads });
+            syncToBackend('importCSV', {
+                leads: validLeads,
+                headers: Object.keys(state.csvData[0] || {})
+            });
             showToast(`Imported ${validLeads.length} leads`);
             document.getElementById('import-result').classList.remove('hidden');
             clearImport();

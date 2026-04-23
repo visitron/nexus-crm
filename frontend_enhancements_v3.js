@@ -17,6 +17,11 @@ const API_CONFIG = {
  * - Improved visual hierarchy
  */
 function createEnhancedLeadCard(lead) {
+  const email = lead.email1 || lead.email || '';
+  const company = lead.companyName || lead.company_name || lead.name || lead.city || '';
+  const contactPhone = lead.phone || lead.contactPersonMobile || '';
+  const interestLevel = Number(lead.interestLevel || lead.rating || 0);
+  const productInterest = lead.productsInterested || lead.product || lead.keyword || '';
   const isDue = lead.followupDate && new Date(lead.followupDate) <= new Date();
   const card = document.createElement('div');
   card.className = 'lead-card p-4 cursor-pointer relative';
@@ -27,7 +32,7 @@ function createEnhancedLeadCard(lead) {
     'proposal': 'status-proposal', 'won': 'status-won', 'lost': 'status-lost'
   };
   const statusLabel = { 'new': 'New', 'interested': 'Interested', 'qualified': 'Qualified', 'proposal': 'Proposal', 'won': 'Won', 'lost': 'Lost' };
-  const interestColor = `interest-${Math.min(10, Math.max(1, lead.interestLevel))}`;
+  const interestColor = `interest-${Math.min(10, Math.max(1, interestLevel))}`;
 
   // MODULE 2: Display last contacted date
   const lastContactedDisplay = lead.lastContactDate 
@@ -41,7 +46,7 @@ function createEnhancedLeadCard(lead) {
     <div class="flex justify-between items-start mb-4">
       <div>
         <h3 class="font-bold text-base">${escapeHTML(lead.name)}</h3>
-        <p class="text-xs text-gray-400 mb-1">${escapeHTML(lead.companyName || lead.city)}</p>
+        <p class="text-xs text-gray-400 mb-1">${escapeHTML(company)}</p>
         <p class="text-xs text-gray-500 font-medium">${lastContactedDisplay}</p>
       </div>
       <span class="px-2 py-1 rounded text-xs font-semibold ${statusClasses[lead.status] || 'status-new'}">
@@ -56,9 +61,9 @@ function createEnhancedLeadCard(lead) {
           <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
           </svg>
-          <span class="text-gray-700 font-medium truncate">${escapeHTML(lead.email1)}</span>
+          <span class="text-gray-700 font-medium truncate">${escapeHTML(email)}</span>
         </div>
-        <button onclick="copyToClipboard(event, '${lead.email1}')" class="btn-copy text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition">
+        <button onclick="copyToClipboard(event, '${email}')" class="btn-copy text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition">
           COPY
         </button>
       </div>
@@ -68,9 +73,9 @@ function createEnhancedLeadCard(lead) {
           <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
           </svg>
-          <span class="text-gray-700 font-medium truncate">${escapeHTML(lead.phone)}</span>
+          <span class="text-gray-700 font-medium truncate">${escapeHTML(contactPhone)}</span>
         </div>
-        <button onclick="copyToClipboard(event, '${lead.phone}')" class="btn-copy text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition">
+        <button onclick="copyToClipboard(event, '${contactPhone}')" class="btn-copy text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 transition">
           COPY
         </button>
       </div>
@@ -81,25 +86,25 @@ function createEnhancedLeadCard(lead) {
       <div class="flex items-center justify-between mb-2">
         <p class="text-xs font-semibold text-gray-600">PRODUCT INTEREST</p>
         <span class="text-xs font-bold ${interestColor} px-2 py-1 rounded-full">
-          ${lead.interestLevel}/10
+          ${interestLevel}/10
         </span>
       </div>
-      <p class="text-sm font-medium text-gray-800 mb-2">${escapeHTML(lead.productsInterested || lead.product)}</p>
+      <p class="text-sm font-medium text-gray-800 mb-2">${escapeHTML(productInterest)}</p>
       <!-- Interest level visual bar -->
       <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-        <div style="width: ${lead.interestLevel * 10}%; background: linear-gradient(90deg, #3b82f6, #10b981);" class="h-2 rounded-full transition-all duration-300"></div>
+        <div style="width: ${interestLevel * 10}%; background: linear-gradient(90deg, #3b82f6, #10b981);" class="h-2 rounded-full transition-all duration-300"></div>
       </div>
     </div>
 
     <!-- Quick Actions -->
     <div class="flex gap-2 pt-2 border-t border-gray-200">
-      <button onclick="dialLead(event, '${lead.phone}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-green-50 text-green-600 rounded" title="Call">
+      <button onclick="dialLead(event, '${contactPhone}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-green-50 text-green-600 rounded" title="Call">
         ☎️ Call
       </button>
-      <button onclick="whatsappLead(event, '${lead.phone}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-green-50 text-green-600 rounded" title="WhatsApp">
+      <button onclick="whatsappLead(event, '${contactPhone}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-green-50 text-green-600 rounded" title="WhatsApp">
         💬 Chat
       </button>
-      <button onclick="emailLead(event, '${lead.email1}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-blue-50 text-blue-600 rounded" title="Email">
+      <button onclick="emailLead(event, '${email}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-blue-50 text-blue-600 rounded" title="Email">
         ✉️ Email
       </button>
       <button onclick="mapLead(event, '${lead.city}')" class="flex-1 action-btn text-xs font-medium py-2 hover:bg-red-50 text-red-600 rounded" title="Maps">
@@ -529,12 +534,16 @@ function copyToClipboard(event, text) {
 // ===============================
 
 // Update state to include conversation tracking
-state.conversationHistory = [];
-state.sessionStartTime = Date.now();
+if (typeof state !== 'undefined') {
+  state.conversationHistory = [];
+  state.sessionStartTime = Date.now();
+}
 
 // Override renderLeads to use enhanced card
 function renderLeadsEnhanced() {
+  if (typeof state === 'undefined' || !state.filteredLeads) return;
   const container = document.getElementById('leads-container');
+  if (!container) return;
   container.innerHTML = '';
 
   if (state.filteredLeads.length === 0) {
@@ -556,8 +565,10 @@ function renderLeadsEnhanced() {
 
 // Override renderHome to use enhanced leads
 const originalRenderHome = window.renderHome;
-window.renderHome = function() {
-  applyFilters();
-  renderLeadsEnhanced();
-  updateStats();
-};
+if (typeof window.renderHome === 'function') {
+  window.renderHome = function() {
+    if (typeof applyFilters === 'function') applyFilters();
+    renderLeadsEnhanced();
+    if (typeof updateStats === 'function') updateStats();
+  };
+}
