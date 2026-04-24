@@ -529,10 +529,6 @@
         // ===============================
         async function init() {
             loadFromStorage();
-            if (state.allLeads.length === 0) {
-                state.allLeads = JSON.parse(JSON.stringify(SAMPLE_LEADS));
-                saveToStorage();
-            }
             state.emailTemplates = SAMPLE_TEMPLATES;
             state.products = SAMPLE_PRODUCTS;
             
