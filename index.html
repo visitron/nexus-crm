@@ -498,7 +498,8 @@
             },
             activityLog: [],
             emailTemplates: [],
-            products: []
+            products: [],
+            sheetHeaders: []
         };
 
         // Sample data
@@ -532,6 +533,12 @@
             state.emailTemplates = SAMPLE_TEMPLATES;
             state.products = SAMPLE_PRODUCTS;
             
+            // Fetch sheet headers from backend for converting raw sheet data
+            await fetchSheetHeaders();
+            
+            // Fetch leads from Google Sheets
+            await fetchLeadsFromBackend();
+            
             render();
             registerServiceWorker();
             syncWithBackend();
@@ -542,6 +549,30 @@
             // Listen for online/offline events
             window.addEventListener('online', () => { state.offlineMode = false; showToast('Back online'); });
             window.addEventListener('offline', () => { state.offlineMode = true; showToast('Offline mode'); });
+        }
+
+        async function fetchSheetHeaders() {
+            try {
+                const response = await syncToBackend('getHeaders', {});
+                if (response && response.headers && Array.isArray(response.headers)) {
+                    state.sheetHeaders = response.headers;
+                }
+            } catch (error) {
+                console.log('Could not fetch sheet headers:', error);
+            }
+        }
+
+        async function fetchLeadsFromBackend() {
+            try {
+                const response = await syncToBackend('getLeads', {});
+                if (response && response.success && Array.isArray(response.leads)) {
+                    // Backend already converts to lead objects, just store them
+                    state.allLeads = response.leads;
+                    saveToStorage();
+                }
+            } catch (error) {
+                console.log('Could not fetch leads from backend:', error);
+            }
         }
 
         // ===============================
@@ -717,12 +748,41 @@
         // ===============================
         // LEAD DETAIL
         // ===============================
-        function showLeadDetail(lead) {
-            state.currentLead = lead;
+        async function showLeadDetail(lead) {
+            // Show loading state first
             document.getElementById('home-page').classList.add('hidden');
             document.getElementById('lead-detail-page').classList.remove('hidden');
-            document.getElementById('header-title').textContent = lead.name;
+            document.getElementById('header-title').textContent = 'Loading...';
+            
+            const content = document.getElementById('lead-detail-content');
+            content.innerHTML = '<div class="text-center py-8"><div class="spinner mx-auto mb-4"></div><p>Loading lead details from Google Sheet...</p></div>';
 
+            try {
+                // Fetch fresh lead data from Google Sheets
+                const response = await syncToBackend('getLead', { leadId: lead.id });
+                
+                if (response.success && response.lead && Array.isArray(response.lead)) {
+                    // Convert raw sheet array to lead object using headers
+                    const leadData = convertSheetRowToLead(response.lead, state.sheetHeaders);
+                    state.currentLead = leadData;
+                    
+                    // Update the display with fresh data from Google Sheet
+                    document.getElementById('header-title').textContent = leadData.name || 'Lead Details';
+                    renderLeadDetail(leadData);
+                    showToast('✓ Lead loaded from Google Sheet');
+                } else {
+                    // Show error if fetch failed
+                    content.innerHTML = '<div class="text-center py-8"><p class="text-red-600">Failed to load lead from server</p><button onclick="backToHome()" class="btn-primary mt-4">Back</button></div>';
+                    showToast('Error: Could not fetch lead data');
+                }
+            } catch (error) {
+                console.error('Error fetching lead:', error);
+                content.innerHTML = '<div class="text-center py-8"><p class="text-red-600">Error: ' + error.message + '</p><button onclick="backToHome()" class="btn-primary mt-4">Back</button></div>';
+                showToast('Error fetching lead: ' + error.message);
+            }
+        }
+
+        function renderLeadDetail(lead) {
             const content = document.getElementById('lead-detail-content');
             content.innerHTML = `
                 <div class="space-y-4 pb-6">
@@ -804,6 +864,42 @@
             document.getElementById('lead-detail-page').classList.add('hidden');
             document.getElementById('home-page').classList.remove('hidden');
             navigate('home');
+        }
+
+        function convertSheetRowToLead(row, headers) {
+            // Convert raw sheet row array to lead object using headers
+            const lead = {};
+            if (!headers || !Array.isArray(row) || !Array.isArray(headers)) {
+                console.warn('Invalid data for conversion:', { row, headers });
+                return lead;
+            }
+            
+            // Map each header to its corresponding value in the row
+            headers.forEach((header, idx) => {
+                const value = row[idx] || '';
+                const normalizedHeader = String(header || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                // Create normalized version
+                lead[normalizedHeader] = value;
+                
+                // Also set common property names for easy access in renderLeadDetail
+                if (normalizedHeader === 'leadid') lead.id = value;
+                if (normalizedHeader === 'name') lead.name = value;
+                if (normalizedHeader === 'email1') lead.email = value;
+                if (normalizedHeader === 'email') lead.email = value;
+                if (normalizedHeader === 'phone') lead.phone = value;
+                if (normalizedHeader === 'city') lead.city = value;
+                if (normalizedHeader === 'state') lead.state = value;
+                if (normalizedHeader === 'status') lead.status = value;
+                if (normalizedHeader === 'interestlevel') lead.interestLevel = value;
+                if (normalizedHeader === 'productsinterested') lead.product = value;
+                if (normalizedHeader === 'notes') lead.notes = value;
+                if (normalizedHeader === 'companyname') lead.companyName = value;
+                if (normalizedHeader === 'keyword') lead.keyword = value;
+                if (normalizedHeader === 'followupdate') lead.followupDate = value;
+            });
+            
+            return lead;
         }
 
         function updateLeadStatus(event, leadId) {
@@ -1331,8 +1427,17 @@
         // EMAIL SEND
         // ===============================
         function sendEmailToLead(leadId) {
-            const lead = state.allLeads.find(l => l.id === leadId);
-            if (!lead) return;
+            const lead = state.currentLead || state.allLeads.find(l => l.id === leadId);
+            if (!lead) {
+                showToast('Lead not found');
+                return;
+            }
+
+            const recipientEmail = lead.email || lead.email1 || '';
+            if (!recipientEmail) {
+                showToast('Lead has no email address');
+                return;
+            }
 
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -1345,7 +1450,7 @@
                             ${state.emailTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
                         </select>
                     </div>
-                    <div><label class="form-label">To</label><input type="email" class="form-input" value="${lead.email}" readonly></div>
+                    <div><label class="form-label">To</label><input type="email" class="form-input" value="${recipientEmail}" readonly></div>
                     <div><label class="form-label">Subject</label><input type="text" id="email-subject" class="form-input"></div>
                     <div><label class="form-label">Body</label><textarea id="email-body" class="form-input" rows="6" placeholder="Write your message..."></textarea></div>
                 </div>
@@ -1368,15 +1473,21 @@
         function doSendEmail(leadId) {
             const subject = document.getElementById('email-subject').value;
             const body = document.getElementById('email-body').value;
-            const lead = state.allLeads.find(l => l.id === leadId);
+            const lead = state.currentLead || state.allLeads.find(l => l.id === leadId);
+            const recipientEmail = lead.email || lead.email1 || '';
 
             if (!subject || !body) {
                 showToast('Fill all fields');
                 return;
             }
 
+            if (!recipientEmail) {
+                showToast('Lead has no email address');
+                return;
+            }
+
             showToast('Sending email...');
-            syncToBackend('sendEmail', { leadId, subject, body, to: lead.email });
+            syncToBackend('sendEmail', { leadId, subject, body, to: recipientEmail });
             logActivity(`Email sent to ${lead.name}`, leadId);
             document.querySelector('.modal').remove();
 
