@@ -142,7 +142,7 @@
         .timeline-content p { margin: 0; font-size: 14px; }
         .timeline-content .time { font-size: 12px; color: var(--muted); }
 
-        @media print { .bottom-nav, .burger-menu, .fab { display: none; } }
+        @media print { .bottom-nav, .burger-menu, .fab, #pagination-controls { display: none; } }
     </style>
 </head>
 <body>
@@ -234,6 +234,33 @@
                     <div id="leads-container" class="space-y-3 pb-6">
                         <div class="lead-card p-4 skeleton" style="height: 200px;"></div>
                         <div class="lead-card p-4 skeleton" style="height: 200px;"></div>
+                    </div>
+
+                    <!-- PAGINATION CONTROLS -->
+                    <div id="pagination-controls" class="fixed bottom-20 left-0 right-0 bg-white border-t border-gray-200 px-4 py-4 flex items-center justify-between">
+                        <button id="btn-prev-page" onclick="loadPreviousPage()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+                            ← Previous
+                        </button>
+                        
+                        <div class="flex items-center gap-4">
+                            <div class="text-center">
+                                <div id="pagination-info" class="text-sm font-semibold text-gray-700">Page 1 of 1</div>
+                                <div id="pagination-summary" class="text-xs text-gray-500">Total: 0 leads</div>
+                            </div>
+                            
+                            <div class="flex items-center gap-2">
+                                <label for="page-size-select" class="text-xs font-medium text-gray-600">Per page:</label>
+                                <select id="page-size-select" onchange="changePageSize(this.value)" class="px-2 py-1 border border-gray-300 rounded text-sm">
+                                    <option value="25">25</option>
+                                    <option value="50" selected>50</option>
+                                    <option value="100">100</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button id="btn-next-page" onclick="loadNextPage()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+                            Next →
+                        </button>
                     </div>
                 </div>
             </div>
@@ -475,6 +502,7 @@
         // ===============================
         // STATE & GLOBAL VARIABLES
         // ===============================
+        window.debugState = {};  // For debugging via DevTools
         const state = {
             currentPage: 'home',
             currentLead: null,
@@ -482,6 +510,14 @@
             filteredLeads: [],
             filterStatus: 'all',
             searchQuery: '',
+            pagination: {
+                currentPage: 1,
+                pageSize: 50,
+                totalCount: 0,
+                totalPages: 0,
+                hasNextPage: false,
+                hasPreviousPage: false
+            },
             user: {
                 id: localStorage.getItem('userId') || 'user_' + Math.random().toString(36).substr(2, 9),
                 name: 'John Doe',
@@ -501,6 +537,95 @@
             products: [],
             sheetHeaders: []
         };
+        
+        // Expose state to window for debugging
+        window.state = state;
+
+        // ===============================
+        // IndexedDB CONFIGURATION
+        // ===============================
+        const DB_NAME = 'nexus_crm_v3';
+        const DB_VERSION = 1;
+        let db;
+
+        async function initIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const newDb = event.target.result;
+                    
+                    // Object store for leads with indexed searches
+                    if (!newDb.objectStoreNames.contains('leads')) {
+                        const leadsStore = newDb.createObjectStore('leads', { keyPath: 'id' });
+                        leadsStore.createIndex('email1', 'email1', { unique: false });
+                        leadsStore.createIndex('phone', 'phone', { unique: false });
+                        leadsStore.createIndex('city', 'city', { unique: false });
+                        leadsStore.createIndex('status', 'status', { unique: false });
+                        leadsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    }
+                    
+                    // Object store for sync metadata
+                    if (!newDb.objectStoreNames.contains('metadata')) {
+                        newDb.createObjectStore('metadata', { keyPath: 'key' });
+                    }
+                };
+            });
+        }
+
+        // IndexedDB helper functions
+        async function saveLeadsToIndexedDB(leads) {
+            const tx = db.transaction('leads', 'readwrite');
+            const store = tx.objectStore('leads');
+            
+            leads.forEach(lead => {
+                store.put(lead);
+            });
+            
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+        async function loadLeadsFromIndexedDB() {
+            const tx = db.transaction('leads', 'readonly');
+            const store = tx.objectStore('leads');
+            
+            return new Promise((resolve, reject) => {
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveSyncMetadata(key, value) {
+            const tx = db.transaction('metadata', 'readwrite');
+            const store = tx.objectStore('metadata');
+            
+            return new Promise((resolve, reject) => {
+                const request = store.put({ key, value, timestamp: new Date().toISOString() });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getSyncMetadata(key) {
+            const tx = db.transaction('metadata', 'readonly');
+            const store = tx.objectStore('metadata');
+            
+            return new Promise((resolve, reject) => {
+                const request = store.get(key);
+                request.onsuccess = () => resolve(request.result?.value);
+                request.onerror = () => reject(request.error);
+            });
+        }
 
         // Sample data
         const SAMPLE_LEADS = [
@@ -510,6 +635,48 @@
             { id: 'lead_004', name: 'Sneha Gupta', email: 'sneha@example.com', phone: '+91 65432 10987', city: 'Pune', keyword: 'Education', status: 'proposal', interestLevel: 6, product: 'Education Loan', followupDate: new Date().toISOString(), notes: 'Proposal sent on 2024-03-15', createdAt: new Date(Date.now() - 259200000).toISOString() },
             { id: 'lead_005', name: 'Vikram Sharma', email: 'vikram@example.com', phone: '+91 54321 09876', city: 'Hyderabad', keyword: 'Auto', status: 'won', interestLevel: 10, product: 'Car Insurance', followupDate: null, notes: 'Closed - Policy #2024-001234', createdAt: new Date(Date.now() - 345600000).toISOString() }
         ];
+
+        // Generate sample leads for testing when backend is unavailable
+        function generateSampleLeads(count = 1266) {
+            const firstNames = ['John', 'Jane', 'Michael', 'Sarah', 'Robert', 'Emily', 'David', 'Lisa', 'James', 'Mary', 'William', 'Patricia', 'Richard', 'Jennifer', 'Joseph', 'Linda', 'Thomas', 'Barbara', 'Charles', 'Elizabeth'];
+            const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin'];
+            const companies = ['Acme Corp', 'TechStart Inc', 'Global Solutions', 'Digital Innovations', 'Enterprise Systems', 'Cloud Nine Services', 'Data Insights Ltd', 'Future Tech', 'Innovation Labs', 'Smart Industries'];
+            const cities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose', 'Austin', 'Jacksonville', 'Denver', 'Boston', 'Seattle'];
+            const statuses = ['new', 'interested', 'qualified', 'proposal', 'won', 'lost'];
+            const products = ['Product A', 'Product B', 'Service X', 'Service Y', 'Solution Pro', 'Enterprise Suite'];
+            const keywords = ['API', 'Cloud', 'Analytics', 'Automation', 'Integration', 'Dashboard', 'Security', 'Scalability', 'Performance', 'ROI'];
+            
+            const leads = [];
+            for (let i = 1; i <= count; i++) {
+                const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+                const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+                const name = `${firstName} ${lastName}`;
+                const companyName = companies[Math.floor(Math.random() * companies.length)];
+                const city = cities[Math.floor(Math.random() * cities.length)];
+                const status = statuses[Math.floor(Math.random() * statuses.length)];
+                const product = products[Math.floor(Math.random() * products.length)];
+                const keyword = keywords[Math.floor(Math.random() * keywords.length)];
+                const interestLevel = Math.floor(Math.random() * 11);
+                
+                leads.push({
+                    id: `lead_${String(i).padStart(5, '0')}`,
+                    name,
+                    companyName,
+                    email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+                    email1: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+                    phone: `+1 ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 900) + 100} ${Math.floor(Math.random() * 9000) + 1000}`,
+                    city,
+                    status,
+                    interestLevel,
+                    product,
+                    keyword,
+                    followupDate: Math.random() > 0.7 ? new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString() : null,
+                    notes: `Sample lead #${i}`,
+                    createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString()
+                });
+            }
+            return leads;
+        }
 
         const SAMPLE_TEMPLATES = [
             { id: 't1', name: 'Initial Contact', subject: 'Interested in {product}?', body: 'Hi {name},\n\nI hope this email finds you well. We have a great {product} solution that might interest you.\n\nBest regards,\n{sender}' },
@@ -529,26 +696,90 @@
         // INITIALIZATION
         // ===============================
         async function init() {
-            loadFromStorage();
-            state.emailTemplates = SAMPLE_TEMPLATES;
-            state.products = SAMPLE_PRODUCTS;
-            
-            // Fetch sheet headers from backend for converting raw sheet data
-            await fetchSheetHeaders();
-            
-            // Fetch leads from Google Sheets
-            await fetchLeadsFromBackend();
-            
-            render();
-            registerServiceWorker();
-            syncWithBackend();
-            
-            // Update notification badge
-            updateNotificationBadge();
-            
-            // Listen for online/offline events
-            window.addEventListener('online', () => { state.offlineMode = false; showToast('Back online'); });
-            window.addEventListener('offline', () => { state.offlineMode = true; showToast('Offline mode'); });
+            try {
+                // Initialize IndexedDB FIRST
+                await initIndexedDB();
+                
+                // Load metadata from localStorage (small items only)
+                loadMetadataFromStorage();
+                
+                // Load leads from IndexedDB (if available)
+                const cachedLeads = await loadLeadsFromIndexedDB();
+                if (cachedLeads && cachedLeads.length > 0) {
+                    state.allLeads = cachedLeads;
+                    
+                    // Initialize pagination from cached data
+                    const cachedPageSize = state.pagination.pageSize || 50;
+                    state.pagination = {
+                        currentPage: 1,
+                        pageSize: cachedPageSize,
+                        totalCount: cachedLeads.length,
+                        totalPages: Math.ceil(cachedLeads.length / cachedPageSize),
+                        hasNextPage: Math.ceil(cachedLeads.length / cachedPageSize) > 1,
+                        hasPreviousPage: false
+                    };
+                    
+                    console.log('📦 [init] Initialized pagination from cached data:', state.pagination);
+                }
+                
+                state.emailTemplates = SAMPLE_TEMPLATES;
+                state.products = SAMPLE_PRODUCTS;
+                
+                // Fetch fresh data from backend
+                await fetchSheetHeaders();
+                
+                console.log('🔄 [init] Before backend fetch, state.allLeads.length:', state.allLeads.length);
+                
+                // Try to fetch from backend, with fallback to sample data if API unavailable
+                let backendSuccess = false;
+                try {
+                    await Promise.race([
+                        fetchLeadsFromBackendPaginated(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Backend timeout')), 8000))
+                    ]);
+                    backendSuccess = true;
+                    console.log('✅ [init] Backend fetch succeeded');
+                } catch (error) {
+                    console.warn('⚠️ [init] Backend unavailable:', error.message);
+                    backendSuccess = false;
+                }
+                
+                // Check if we need to load sample data
+                console.log('📊 [init] After backend attempt: state.allLeads.length =', state.allLeads.length);
+                if (state.allLeads.length === 0 && !backendSuccess) {
+                    console.log('📦 [init] No data from backend or cache, loading sample data...');
+                    const sampleLeads = generateSampleLeads(1266);
+                    console.log('📦 [init] Generated', sampleLeads.length, 'sample leads');
+                    
+                    state.allLeads = sampleLeads;
+                    await saveLeadsToIndexedDB(sampleLeads);
+                    
+                    // Set pagination from sample data
+                    state.pagination = {
+                        currentPage: 1,
+                        pageSize: 50,
+                        totalCount: sampleLeads.length,
+                        totalPages: Math.ceil(sampleLeads.length / 50),
+                        hasNextPage: true,
+                        hasPreviousPage: false
+                    };
+                    
+                    console.log('✅ [init] Set pagination from sample data:', state.pagination);
+                    showToast('Loaded sample data (API unavailable)');
+                }
+                
+                render();  // Always re-render after backend fetch completes
+                
+                // Update notification badge
+                updateNotificationBadge();
+                
+                // Listen for online/offline events
+                window.addEventListener('online', () => { state.offlineMode = false; showToast('Back online'); });
+                window.addEventListener('offline', () => { state.offlineMode = true; showToast('Offline mode'); });
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showToast('Error loading app: ' + error.message);
+            }
         }
 
         async function fetchSheetHeaders() {
@@ -562,17 +793,152 @@
             }
         }
 
-        async function fetchLeadsFromBackend() {
+        async function fetchLeadsFromBackendPaginated(pageNum = 1, pageSize = 50) {
             try {
-                const response = await syncToBackend('getLeads', {});
-                if (response && response.success && Array.isArray(response.leads)) {
-                    // Backend already converts to lead objects, just store them
-                    state.allLeads = response.leads;
-                    saveToStorage();
+                showLoadingSpinner();
+                
+                console.log('🔄 [fetchLeadsFromBackendPaginated] Starting fetch, page:', pageNum, 'pageSize:', pageSize);
+                
+                // Add timeout to API call
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                
+                let response = null;
+                try {
+                    console.log('📡 [fetchLeadsFromBackendPaginated] Calling backend API...');
+                    response = await Promise.race([
+                        syncToBackend('getLeads', { page: pageNum, pageSize: pageSize }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('API timeout')), 15000))
+                    ]);
+                    clearTimeout(timeoutId);
+                } catch (apiError) {
+                    console.warn('⚠️ [fetchLeadsFromBackendPaginated] API call failed:', apiError.message);
+                    console.log('📦 [fetchLeadsFromBackendPaginated] Falling back to cached data...');
+                    response = null;
+                }
+                
+                if (!response) {
+                    console.log('❌ [fetchLeadsFromBackendPaginated] No response from backend, using cached data');
+                    // Fall back to cached data immediately
+                    const cached = await loadLeadsFromIndexedDB();
+                    if (cached.length > 0) {
+                        state.allLeads = cached;
+                        
+                        // Set pagination based on cached data
+                        const cachedPageSize = state.pagination.pageSize || pageSize;
+                        const totalLeads = cached.length;
+                        const totalPages = Math.ceil(totalLeads / cachedPageSize);
+                        
+                        state.pagination = {
+                            currentPage: pageNum,
+                            pageSize: cachedPageSize,
+                            totalCount: totalLeads,
+                            totalPages: totalPages,
+                            hasNextPage: pageNum < totalPages,
+                            hasPreviousPage: pageNum > 1
+                        };
+                        
+                        console.log('✅ [fetchLeadsFromBackendPaginated] Using cached data:', state.pagination);
+                        showToast('Using cached data');
+                        return;
+                    }
+                }
+                
+                console.log('🔍 [fetchLeadsFromBackendPaginated] FULL Response:', response);
+                
+                if (response && response.success && Array.isArray(response.data)) {
+                    console.log('✅ Response validation passed - data is array');
+                    console.log('📦 Pagination from response:', response.pagination);
+                    
+                    // Handle paginated response
+                    if (pageNum === 1) {
+                        state.allLeads = response.data;
+                    } else {
+                        // Merge with existing
+                        const existingIds = new Set(state.allLeads.map(l => l.id));
+                        response.data.forEach(lead => {
+                            if (!existingIds.has(lead.id)) {
+                                state.allLeads.push(lead);
+                            }
+                        });
+                    }
+                    
+                    console.log('📊 state.allLeads.length after load:', state.allLeads.length);
+                    
+                    // Save pagination info with all required fields
+                    if (response.pagination) {
+                        const totalCount = response.pagination.totalCount || 0;
+                        const totalPages = response.pagination.totalPages || Math.ceil(totalCount / pageSize) || 1;
+                        
+                        console.log('📌 Setting state.pagination:');
+                        console.log('   totalCount from response.pagination:', response.pagination.totalCount);
+                        console.log('   totalPages from response.pagination:', response.pagination.totalPages);
+                        
+                        state.pagination = {
+                            currentPage: pageNum,
+                            pageSize: pageSize,
+                            totalCount: totalCount,
+                            totalPages: totalPages,
+                            hasNextPage: response.pagination.hasNextPage !== undefined ? response.pagination.hasNextPage : (pageNum < totalPages),
+                            hasPreviousPage: response.pagination.hasPreviousPage !== undefined ? response.pagination.hasPreviousPage : (pageNum > 1)
+                        };
+                        
+                        console.log('✅ [fetchLeadsFromBackendPaginated] state.pagination UPDATED:', state.pagination);
+                    } else {
+                        console.warn('⚠️ [fetchLeadsFromBackendPaginated] No pagination info in response');
+                    }
+                    
+                    // Save all leads to IndexedDB
+                    await saveLeadsToIndexedDB(state.allLeads);
+                    
+                    // Update metadata
+                    await saveSyncMetadata('lastSyncTime', new Date().toISOString());
+                    await saveSyncMetadata('paginationState', state.pagination);
+                    
+                    // Update localStorage with summary only
+                    localStorage.setItem('lastSync', new Date().toISOString());
+                    localStorage.setItem('leadCount', state.allLeads.length);
+                } else {
+                    console.error('❌ [fetchLeadsFromBackendPaginated] Response validation FAILED:', {
+                        success: response?.success,
+                        isArray: Array.isArray(response?.data),
+                        response: response
+                    });
+                    throw new Error('Invalid response structure from backend');
                 }
             } catch (error) {
-                console.log('Could not fetch leads from backend:', error);
+                console.error('❌ [fetchLeadsFromBackendPaginated] EXCEPTION:', error);
+                // Fallback to cached data
+                const cached = await loadLeadsFromIndexedDB();
+                if (cached.length > 0) {
+                    state.allLeads = cached;
+                    
+                    // Set pagination based on cached data
+                    const cachedPageSize = state.pagination.pageSize || 50;
+                    const totalLeads = cached.length;
+                    const totalPages = Math.ceil(totalLeads / cachedPageSize);
+                    
+                    state.pagination = {
+                        currentPage: 1,
+                        pageSize: cachedPageSize,
+                        totalCount: totalLeads,
+                        totalPages: totalPages,
+                        hasNextPage: totalPages > 1,
+                        hasPreviousPage: false
+                    };
+                    
+                    console.log('📦 [fetchLeadsFromBackendPaginated] Using cached data:', state.pagination);
+                    showToast('Using cached data (offline)');
+                }
+            } finally {
+                hideLoadingSpinner();
+                console.log('🎯 [fetchLeadsFromBackendPaginated] FINAL state.pagination:', state.pagination);
             }
+        }
+
+        async function fetchLeadsFromBackend() {
+            // Legacy function - now calls paginated version
+            return fetchLeadsFromBackendPaginated();
         }
 
         // ===============================
@@ -645,9 +1011,20 @@
         // HOME PAGE
         // ===============================
         function renderHome() {
+            console.log('🏠 [renderHome] CALLED - state.pagination.totalCount:', state.pagination.totalCount);
             applyFilters();
             renderLeads();
             updateStats();
+            console.log('🏠 [renderHome] About to call updatePaginationControls - state.pagination:', state.pagination);
+            updatePaginationControls();
+            
+            // Update debug state for inspection
+            window.debugState = {
+                allLeadsLength: state.allLeads.length,
+                filteredLeadsLength: state.filteredLeads.length,
+                pagination: {...state.pagination}
+            };
+            console.log('🔍 DEBUG STATE:', window.debugState);
         }
 
         function applyFilters() {
@@ -743,6 +1120,91 @@
             const dueLeads = state.allLeads.filter(l => l.followupDate && new Date(l.followupDate) <= new Date());
             document.getElementById('lead-count').textContent = state.filteredLeads.length + ' Leads';
             document.getElementById('follow-up-count').textContent = dueLeads.length + ' Due';
+        }
+
+        function updatePaginationControls() {
+            const pageSize = state.pagination.pageSize || 50;
+            const currentPage = state.pagination.currentPage || 1;
+            const totalCount = state.pagination.totalCount || 0;
+            const totalPages = state.pagination.totalPages || Math.ceil(totalCount / pageSize) || 1;
+
+            console.log('📊 [updatePaginationControls] Called with:', {
+                pageSize,
+                currentPage,
+                totalCount,
+                totalPages,
+                statePagination: state.pagination
+            });
+
+            // Update pagination info with proper formatting
+            const paginationInfo = document.getElementById('pagination-info');
+            if (paginationInfo) {
+                paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                console.log('✅ Updated pagination-info:', paginationInfo.textContent);
+            }
+            
+            const paginationSummary = document.getElementById('pagination-summary');
+            if (paginationSummary) {
+                paginationSummary.textContent = `Total: ${totalCount} leads`;
+                console.log('✅ Updated pagination-summary:', paginationSummary.textContent);
+            }
+
+            // Update page size selector to current page size
+            const pageSizeSelect = document.getElementById('page-size-select');
+            if (pageSizeSelect && pageSizeSelect.value !== String(pageSize)) {
+                pageSizeSelect.value = pageSize;
+                console.log('✅ Updated page-size-select to:', pageSize);
+            }
+
+            // Update button states
+            const btnPrev = document.getElementById('btn-prev-page');
+            const btnNext = document.getElementById('btn-next-page');
+
+            if (btnPrev) {
+                const prevDisabled = currentPage <= 1;
+                btnPrev.disabled = prevDisabled;
+                console.log('✅ btn-prev-page disabled:', prevDisabled);
+            }
+            if (btnNext) {
+                const nextDisabled = currentPage >= totalPages || totalPages === 0;
+                btnNext.disabled = nextDisabled;
+                console.log('✅ btn-next-page disabled:', nextDisabled);
+            }
+        }
+
+        async function loadNextPage() {
+            const pageSize = state.pagination.pageSize || 50;
+            const currentPage = state.pagination.currentPage || 1;
+            const totalPages = state.pagination.totalPages || 1;
+
+            if (currentPage < totalPages) {
+                await fetchLeadsFromBackendPaginated(currentPage + 1, pageSize);
+                renderHome();
+                scrollToTop();
+            }
+        }
+
+        async function loadPreviousPage() {
+            const pageSize = state.pagination.pageSize || 50;
+            const currentPage = state.pagination.currentPage || 1;
+
+            if (currentPage > 1) {
+                await fetchLeadsFromBackendPaginated(currentPage - 1, pageSize);
+                renderHome();
+                scrollToTop();
+            }
+        }
+
+        async function changePageSize(newSize) {
+            state.pagination.pageSize = parseInt(newSize);
+            state.pagination.currentPage = 1;
+            await fetchLeadsFromBackendPaginated(1, parseInt(newSize));
+            renderHome();
+            scrollToTop();
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         // ===============================
@@ -1203,50 +1665,128 @@
             document.getElementById('import-preview').classList.remove('hidden');
         }
 
-        function submitImport() {
+        async function submitImport() {
             if (!state.csvData) {
                 showToast('No CSV data');
                 return;
             }
 
-            const newLeads = state.csvData.map((row, idx) => mapImportRowToLead(row, idx));
-
-            // Validate and filter out completely empty rows
-            const validLeads = newLeads.filter(lead => lead.name || lead.email1 || lead.phone);
-
-            if (validLeads.length === 0) {
-                showToast('No valid leads found in CSV');
+            if (state.csvData.length === 0) {
+                showToast('No CSV data to import');
                 return;
             }
 
-            validLeads.forEach(newLead => {
-                const email = String(newLead.email1 || newLead.email2 || newLead.email || '').trim().toLowerCase();
-                const incomingPhone = String(newLead.phone || '').replace(/\D/g, '');
-                const existingIdx = state.allLeads.findIndex(l => 
-                    (email && [l.email, l.email1, l.email2].some(e => String(e || '').trim().toLowerCase() === email)) ||
-                    (incomingPhone && String(l.phone || '').replace(/\D/g, '') === incomingPhone)
-                );
-                
-                if (existingIdx >= 0) {
-                    if (state.allLeads[existingIdx].status === 'new') {
-                        Object.assign(state.allLeads[existingIdx], newLead);
-                    } else {
-                        newLead.conflictFlag = true;
-                        state.allLeads.push(newLead);
-                    }
-                } else {
-                    state.allLeads.push(newLead);
-                }
-            });
+            showLoadingSpinner();
 
-            saveToStorage();
-            syncToBackend('importCSV', {
-                leads: validLeads,
-                headers: Object.keys(state.csvData[0] || {})
+            try {
+                // Send ALL leads to backend for validation (don't filter frontend)
+                const response = await syncToBackend('importCSV', {
+                    leads: state.csvData,
+                    headers: Object.keys(state.csvData[0] || {})
+                });
+
+                if (response.success) {
+                    // Show rejection report if there are rejected records
+                    if (response.rejectDetails && response.rejectDetails.length > 0) {
+                        displayRejectionReport(response.rejectDetails);
+                    }
+
+                    // Merge newly imported leads into state
+                    if (response.importResult && response.importResult.valid > 0) {
+                        // The backend has already saved to sheets
+                        // Now fetch fresh data to sync frontend
+                        await fetchLeadsFromBackendPaginated();
+                        
+                        showToast(`✓ ${response.importResult.valid} leads imported successfully!`);
+                    }
+
+                    // Show final message
+                    const msg = `Imported ${response.importResult.valid}/${response.importResult.total} records.`;
+                    if (response.importResult.invalid > 0) {
+                        showToast(msg + ` ${response.importResult.invalid} need review.`, 5000);
+                    } else {
+                        showToast(msg, 3000);
+                    }
+
+                    // Show import summary
+                    document.getElementById('import-result').classList.remove('hidden');
+                    document.getElementById('import-result').innerHTML = `
+                        <div class="p-4 bg-green-50 border border-green-200 rounded">
+                            <h3 class="font-bold text-green-800">Import Complete</h3>
+                            <p class="text-sm text-green-700 mt-2">
+                                ✓ Valid: ${response.importResult.valid}<br>
+                                ⚠ Review: ${response.importResult.invalid}
+                            </p>
+                        </div>
+                    `;
+
+                    clearImport();
+                } else {
+                    showToast('Import failed: ' + response.message);
+                }
+            } catch (error) {
+                showToast('Import error: ' + error.message);
+                console.error('Import error:', error);
+            } finally {
+                hideLoadingSpinner();
+            }
+        }
+
+        function displayRejectionReport(rejections) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.id = 'rejection-modal';
+            
+            let html = `
+                <div class="modal-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold">Records Needing Review (${rejections.length})</h2>
+                        <button onclick="document.getElementById('rejection-modal').remove()" class="text-xl">×</button>
+                    </div>
+                    <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                        <table class="w-full text-sm border">
+                            <thead class="bg-red-50 sticky top-0">
+                                <tr>
+                                    <th class="p-2 border text-left">Row</th>
+                                    <th class="p-2 border text-left">Reason</th>
+                                    <th class="p-2 border text-left">Name</th>
+                                    <th class="p-2 border text-left">Email</th>
+                                    <th class="p-2 border text-left">Phone</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            rejections.forEach(rej => {
+                const lead = rej.lead || {};
+                html += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 border text-sm">${rej.rowIndex + 1}</td>
+                        <td class="p-2 border text-red-600 font-semibold text-xs">${rej.reason}</td>
+                        <td class="p-2 border text-sm">${lead.name || '-'}</td>
+                        <td class="p-2 border text-sm text-blue-600">${lead.email1 || lead.email || '-'}</td>
+                        <td class="p-2 border text-sm">${lead.phone || '-'}</td>
+                    </tr>
+                `;
             });
-            showToast(`Imported ${validLeads.length} leads`);
-            document.getElementById('import-result').classList.remove('hidden');
-            clearImport();
+            
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-4 p-3 bg-blue-50 rounded">
+                        💡 <strong>Tip:</strong> Records are flagged because they're missing all three identifiers 
+                        (name, email, phone). You can edit them in the CSV and re-import, 
+                        or add them directly in the app after import.
+                    </p>
+                    <div class="mt-4 flex gap-2">
+                        <button onclick="document.getElementById('rejection-modal').remove()" class="btn-secondary flex-1">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            modal.innerHTML = html;
+            document.body.appendChild(modal);
         }
 
         function clearImport() {
@@ -1706,11 +2246,14 @@
 
         async function syncToBackend(action, payload) {
             if (state.offlineMode) {
+                console.log('⚠️ [syncToBackend] Offline mode enabled');
                 showToast('Queued for sync');
                 return;
             }
 
             try {
+                console.log('📡 [syncToBackend] Calling API with action:', action);
+                
                 const response = await fetch(GAS_ENDPOINT, {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1721,47 +2264,98 @@
                     })
                 });
 
+                console.log('📡 [syncToBackend] HTTP Response status:', response.status);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('✅ [syncToBackend] Response data received:', data);
                     return data;
+                } else {
+                    console.error('❌ [syncToBackend] HTTP Error:', response.status);
+                    return null;
                 }
             } catch (err) {
-                console.log('Backend sync failed:', err);
+                console.error('❌ [syncToBackend] Exception:', err);
+                return null;
             }
         }
 
         // ===============================
         // STORAGE
         // ===============================
-        function saveToStorage() {
-            localStorage.setItem('crm_leads', JSON.stringify(state.allLeads));
+        async function saveToStorage() {
+            // Small metadata only in localStorage
             localStorage.setItem('crm_user', JSON.stringify(state.user));
             localStorage.setItem('crm_settings', JSON.stringify(state.settings));
-            localStorage.setItem('crm_activity', JSON.stringify(state.activityLog));
             localStorage.setItem('userId', state.user.id);
+            localStorage.setItem('lastSync', state.lastSync);
+            
+            // Full leads in IndexedDB (avoids localStorage limits)
+            try {
+                await saveLeadsToIndexedDB(state.allLeads);
+            } catch (error) {
+                console.warn('Could not save to IndexedDB:', error);
+            }
+        }
+
+        function loadMetadataFromStorage() {
+            const user = localStorage.getItem('crm_user');
+            const settings = localStorage.getItem('crm_settings');
+            
+            if (user) state.user = JSON.parse(user);
+            if (settings) state.settings = JSON.parse(settings);
+            
+            state.lastSync = localStorage.getItem('lastSync') || 'Never';
         }
 
         function loadFromStorage() {
-            const leads = localStorage.getItem('crm_leads');
-            const user = localStorage.getItem('crm_user');
-            const settings = localStorage.getItem('crm_settings');
-            const activity = localStorage.getItem('crm_activity');
-
-            if (leads) state.allLeads = JSON.parse(leads);
-            if (user) state.user = JSON.parse(user);
-            if (settings) state.settings = JSON.parse(settings);
-            if (activity) state.activityLog = JSON.parse(activity);
+            // Legacy function - metadata comes from localStorage, leads from IndexedDB
+            loadMetadataFromStorage();
         }
 
         // ===============================
         // UTILITIES
         // ===============================
-        function showToast(message) {
+        function showLoadingSpinner() {
+            let spinner = document.getElementById('loading-spinner');
+            if (!spinner) {
+                spinner = document.createElement('div');
+                spinner.id = 'loading-spinner';
+                spinner.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 9999;
+                    background: white;
+                    padding: 30px;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    text-align: center;
+                `;
+                spinner.innerHTML = `
+                    <div class="spinner mx-auto mb-3"></div>
+                    <p class="text-sm text-gray-600">Loading...</p>
+                `;
+                document.body.appendChild(spinner);
+            } else {
+                spinner.style.display = 'block';
+            }
+        }
+
+        function hideLoadingSpinner() {
+            const spinner = document.getElementById('loading-spinner');
+            if (spinner) {
+                spinner.style.display = 'none';
+            }
+        }
+
+        function showToast(message, duration = 3000) {
             const toast = document.createElement('div');
             toast.className = 'toast';
             toast.textContent = message;
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
+            setTimeout(() => toast.remove(), duration);
         }
 
         function escapeHTML(text) {
@@ -1787,6 +2381,6 @@
 		
     </script>
 	
-	<script src="frontend_enhancements_v3.js"></script>
+	<!-- <script src="frontend_enhancements_v3.js"></script> -->
 </body>
 </html>

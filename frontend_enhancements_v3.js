@@ -143,7 +143,6 @@ window.syncFromAndroid = async function(logData) {
     // Send to backend via API
     const response = await fetch(API_CONFIG.endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'androidCallSync',
         userId: state.user.id,
@@ -192,7 +191,6 @@ window.addEventListener('beforeunload', async function() {
   try {
     await fetch(API_CONFIG.endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'logSessionUsage',
         userId: state.user.id,
@@ -226,7 +224,6 @@ async function logConversationToBackend(leadId, product, description, interactio
   try {
     const response = await fetch(API_CONFIG.endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'logConversation',
         userId: state.user.id,
@@ -338,7 +335,6 @@ Format as ready-to-send email content.`;
     // Call contextual LLM endpoint
     const response = await fetch(API_CONFIG.endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'contextualLLM',
         userId: state.user.id,
