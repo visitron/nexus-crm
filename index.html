@@ -838,8 +838,9 @@
                             hasPreviousPage: pageNum > 1
                         };
                         
-                        console.log('✅ [fetchLeadsFromBackendPaginated] Using cached data:', state.pagination);
+                        console.log('✅ [fetchLeadsFromBackendPaginated] Using cached data (page', pageNum, '):', state.pagination);
                         showToast('Using cached data');
+                        renderHome();
                         return;
                     }
                 }
@@ -850,20 +851,10 @@
                     console.log('✅ Response validation passed - data is array');
                     console.log('📦 Pagination from response:', response.pagination);
                     
-                    // Handle paginated response
-                    if (pageNum === 1) {
-                        state.allLeads = response.data;
-                    } else {
-                        // Merge with existing
-                        const existingIds = new Set(state.allLeads.map(l => l.id));
-                        response.data.forEach(lead => {
-                            if (!existingIds.has(lead.id)) {
-                                state.allLeads.push(lead);
-                            }
-                        });
-                    }
+                    // Replace state.allLeads with current page's data (proper pagination, not infinite scroll)
+                    state.allLeads = response.data;
                     
-                    console.log('📊 state.allLeads.length after load:', state.allLeads.length);
+                    console.log('📊 state.allLeads.length for page', pageNum, ':', state.allLeads.length);
                     
                     // Save pagination info with all required fields
                     if (response.pagination) {
@@ -1060,11 +1051,105 @@
             const isDue = lead.followupDate && new Date(lead.followupDate) <= new Date();
             const card = document.createElement('div');
             card.className = 'lead-card p-4 cursor-pointer relative';
-            card.onclick = () => showLeadDetail(lead);
+            card.setAttribute('data-lead-id', lead.id);
+            card.onclick = (e) => {
+                // Don't open detail if clicking on action buttons or edit buttons
+                if (e.target.closest('.action-btn') || e.target.closest('button')) {
+                    return;
+                }
+                showLeadDetail(lead);
+            };
 
             const statusClasses = { 'new': 'status-new', 'interested': 'status-interested', 'qualified': 'status-qualified', 'proposal': 'status-proposal', 'won': 'status-won', 'lost': 'status-lost' };
             const statusLabel = { 'new': 'New', 'interested': 'Interested', 'qualified': 'Qualified', 'proposal': 'Proposal', 'won': 'Won', 'lost': 'Lost' };
             const interestColor = `interest-${Math.min(10, Math.max(1, lead.interestLevel))}`;
+
+            // Build email display section (support email1 and email2)
+            let emailsHTML = '';
+            if (lead.email1 || lead.email) {
+                const email = lead.email1 || lead.email;
+                emailsHTML += `
+                    <div class="flex items-center justify-between gap-2 text-sm mb-2" data-field="email1">
+                        <div class="flex items-center gap-2 flex-1">
+                            <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                            <span class="text-gray-700 truncate email1-display">${escapeHTML(email)}</span>
+                        </div>
+                        <button onclick="toggleEmailEdit(event, '${lead.id}', 'email1')" class="edit-btn-email text-xs px-1.5 py-1 text-gray-500 hover:text-blue-600 transition">✏️</button>
+                        <button onclick="copyToClipboard(event, '${email}')" class="text-xs px-1.5 py-1 text-gray-500 hover:text-blue-600">📋</button>
+                    </div>
+                    <div class="email1-edit hidden mb-2">
+                        <input type="email" class="email1-input w-full px-2 py-1 border border-gray-300 rounded text-sm" value="${escapeHTML(email)}" placeholder="Enter email">
+                        <div class="flex gap-1 mt-1">
+                            <button onclick="saveLeadField(event, '${lead.id}', 'email1')" class="flex-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                            <button onclick="clearLeadField(event, '${lead.id}', 'email1')" class="flex-1 text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Clear</button>
+                            <button onclick="cancelEdit(event, '${lead.id}', 'email1')" class="flex-1 text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+            if (lead.email2) {
+                emailsHTML += `
+                    <div class="flex items-center justify-between gap-2 text-sm mb-2" data-field="email2">
+                        <div class="flex items-center gap-2 flex-1">
+                            <svg class="w-4 h-4 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                            <span class="text-gray-700 truncate email2-display">${escapeHTML(lead.email2)}</span>
+                        </div>
+                        <button onclick="toggleEmailEdit(event, '${lead.id}', 'email2')" class="edit-btn-email text-xs px-1.5 py-1 text-gray-500 hover:text-blue-600 transition">✏️</button>
+                        <button onclick="copyToClipboard(event, '${lead.email2}')" class="text-xs px-1.5 py-1 text-gray-500 hover:text-blue-600">📋</button>
+                    </div>
+                    <div class="email2-edit hidden mb-2">
+                        <input type="email" class="email2-input w-full px-2 py-1 border border-gray-300 rounded text-sm" value="${escapeHTML(lead.email2)}" placeholder="Enter email">
+                        <div class="flex gap-1 mt-1">
+                            <button onclick="saveLeadField(event, '${lead.id}', 'email2')" class="flex-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                            <button onclick="clearLeadField(event, '${lead.id}', 'email2')" class="flex-1 text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Clear</button>
+                            <button onclick="cancelEdit(event, '${lead.id}', 'email2')" class="flex-1 text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build phone display section (support phone and contact_person_mobile)
+            let phonesHTML = '';
+            if (lead.phone) {
+                phonesHTML += `
+                    <div class="flex items-center justify-between gap-2 text-sm mb-2" data-field="phone">
+                        <div class="flex items-center gap-2 flex-1">
+                            <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                            <span class="text-gray-700 truncate phone-display">${escapeHTML(lead.phone)}</span>
+                        </div>
+                        <button onclick="togglePhoneEdit(event, '${lead.id}', 'phone')" class="edit-btn-phone text-xs px-1.5 py-1 text-gray-500 hover:text-green-600 transition">✏️</button>
+                        <button onclick="copyToClipboard(event, '${lead.phone}')" class="text-xs px-1.5 py-1 text-gray-500 hover:text-green-600">📋</button>
+                    </div>
+                    <div class="phone-edit hidden mb-2">
+                        <input type="tel" class="phone-input w-full px-2 py-1 border border-gray-300 rounded text-sm" value="${escapeHTML(lead.phone)}" placeholder="Enter phone">
+                        <div class="flex gap-1 mt-1">
+                            <button onclick="saveLeadField(event, '${lead.id}', 'phone')" class="flex-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                            <button onclick="clearLeadField(event, '${lead.id}', 'phone')" class="flex-1 text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Clear</button>
+                            <button onclick="cancelEdit(event, '${lead.id}', 'phone')" class="flex-1 text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+            if (lead.contact_person_mobile) {
+                phonesHTML += `
+                    <div class="flex items-center justify-between gap-2 text-sm mb-2" data-field="contact_person_mobile">
+                        <div class="flex items-center gap-2 flex-1">
+                            <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                            <span class="text-gray-700 truncate contact-mobile-display">${escapeHTML(lead.contact_person_mobile)}</span>
+                        </div>
+                        <button onclick="togglePhoneEdit(event, '${lead.id}', 'contact_person_mobile')" class="edit-btn-phone text-xs px-1.5 py-1 text-gray-500 hover:text-green-600 transition">✏️</button>
+                        <button onclick="copyToClipboard(event, '${lead.contact_person_mobile}')" class="text-xs px-1.5 py-1 text-gray-500 hover:text-green-600">📋</button>
+                    </div>
+                    <div class="contact-mobile-edit hidden mb-2">
+                        <input type="tel" class="contact-mobile-input w-full px-2 py-1 border border-gray-300 rounded text-sm" value="${escapeHTML(lead.contact_person_mobile)}" placeholder="Enter phone">
+                        <div class="flex gap-1 mt-1">
+                            <button onclick="saveLeadField(event, '${lead.id}', 'contact_person_mobile')" class="flex-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                            <button onclick="clearLeadField(event, '${lead.id}', 'contact_person_mobile')" class="flex-1 text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Clear</button>
+                            <button onclick="cancelEdit(event, '${lead.id}', 'contact_person_mobile')" class="flex-1 text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
 
             card.innerHTML = `
                 ${isDue ? '<div class="due-badge">!</div>' : ''}
@@ -1076,15 +1161,9 @@
                     <span class="px-2 py-1 rounded text-xs font-semibold ${statusClasses[lead.status] || 'status-new'}">${statusLabel[lead.status] || 'New'}</span>
                 </div>
 
-                <div class="space-y-2 mb-3">
-                    <div class="flex items-center gap-2 text-sm">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                        <span class="cursor-pointer hover:text-blue-600" onclick="copyToClipboard(event, '${lead.email}')">${lead.email}</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm">
-                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
-                        <span class="cursor-pointer hover:text-blue-600" onclick="copyToClipboard(event, '${lead.phone}')">${lead.phone}</span>
-                    </div>
+                <div class="space-y-1 mb-3 bg-gray-50 p-2 rounded">
+                    ${emailsHTML}
+                    ${phonesHTML}
                 </div>
 
                 <div class="flex items-center justify-between">
@@ -1246,78 +1325,192 @@
 
         function renderLeadDetail(lead) {
             const content = document.getElementById('lead-detail-content');
+            
+            // Helper to format field display with edit capability
+            const editField = (fieldName, value, isEmail = false, isPhone = false, isUrl = false) => {
+                const displayValue = escapeHTML(String(value || ''));
+                let inputType = 'text';
+                if (isEmail) inputType = 'email';
+                if (isPhone) inputType = 'tel';
+                if (isUrl) inputType = 'url';
+                
+                return `
+                    <div class="flex items-center justify-between gap-2 mb-3 group" data-field="${fieldName}">
+                        <div class="flex-1">
+                            <label class="text-xs font-semibold text-gray-500 uppercase">${fieldName.replace(/_/g, ' ')}</label>
+                            <div class="detail-display-${fieldName} cursor-pointer hover:text-blue-600 transition text-sm font-medium">
+                                ${displayValue || '(empty)'}
+                            </div>
+                            <div class="detail-edit-${fieldName} hidden mt-2">
+                                <input type="${inputType}" class="w-full px-2 py-1 border border-gray-300 rounded text-sm detail-input-${fieldName}" value="${displayValue}">
+                                <div class="flex gap-1 mt-1">
+                                    <button onclick="saveDetailField(event, '${lead.id}', '${fieldName}')" class="flex-1 text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600">Save</button>
+                                    <button onclick="clearDetailField(event, '${lead.id}', '${fieldName}')" class="flex-1 text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600">Clear</button>
+                                    <button onclick="cancelDetailEdit(event, '${fieldName}')" class="flex-1 text-xs px-2 py-1 bg-gray-400 text-white rounded hover:bg-gray-500">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="toggleDetailEdit(event, '${fieldName}')" class="edit-detail-btn-${fieldName} text-xs px-1.5 py-1 text-gray-400 group-hover:text-blue-600 transition opacity-0 group-hover:opacity-100">✏️</button>
+                    </div>
+                `;
+            };
+            
+            const readonlyField = (fieldName, value) => {
+                const displayValue = escapeHTML(String(value || ''));
+                return `
+                    <div class="mb-3">
+                        <label class="text-xs font-semibold text-gray-500 uppercase">${fieldName.replace(/_/g, ' ')}</label>
+                        <div class="text-sm font-medium text-gray-700">${displayValue || '(empty)'}</div>
+                    </div>
+                `;
+            };
+            
+            const statusClasses = {
+                'new': 'bg-blue-100 text-blue-800',
+                'interested': 'bg-purple-100 text-purple-800',
+                'qualified': 'bg-green-100 text-green-800',
+                'proposal': 'bg-yellow-100 text-yellow-800',
+                'won': 'bg-emerald-100 text-emerald-800',
+                'lost': 'bg-red-100 text-red-800'
+            };
+            
+            const mapLink = (lead.latitude && lead.longitude) 
+                ? `<iframe class="w-full h-64 rounded-lg mb-4" src="https://maps.google.com/maps?q=${lead.latitude},${lead.longitude}&output=embed" frameborder="0" style="border:0;" allowfullscreen="" loading="lazy"></iframe>`
+                : '';
+            
             content.innerHTML = `
-                <div class="space-y-4 pb-6">
-                    <div class="card">
-                        <h2 class="font-bold text-xl mb-4">${escapeHTML(lead.name)}</h2>
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-center">
-                                <label class="text-sm text-gray-600">Email</label>
-                                <button onclick="copyToClipboard(event, '${lead.email}')" class="text-blue-600 text-sm hover:underline">${lead.email}</button>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <label class="text-sm text-gray-600">Phone</label>
-                                <button onclick="copyToClipboard(event, '${lead.phone}')" class="text-blue-600 text-sm hover:underline">${lead.phone}</button>
-                            </div>
-                            <div class="flex justify-between">
-                                <label class="text-sm text-gray-600">City</label>
-                                <span class="text-sm font-medium">${lead.city}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <label class="text-sm text-gray-600">Keyword</label>
-                                <span class="text-sm font-medium">${lead.keyword}</span>
-                            </div>
+                <div class="pb-6">
+                    <!-- Header with Status -->
+                    <div class="card mb-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h1 class="text-2xl font-bold">${escapeHTML(lead.name || 'Unknown Lead')}</h1>
+                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusClasses[lead.status] || 'bg-gray-100 text-gray-800'}">
+                                ${(lead.status || 'new').toUpperCase()}
+                            </span>
                         </div>
+                        <p class="text-sm text-gray-600">${escapeHTML(lead.companyname || lead.company_name || '')}</p>
                     </div>
 
-                    <div class="card">
-                        <h3 class="font-semibold mb-3">Product & Interest</h3>
-                        <div class="mb-3">
-                            <p class="text-sm text-gray-600 mb-1">Product</p>
-                            <p class="font-medium">${lead.product}</p>
-                        </div>
+                    <!-- Map if coordinates available -->
+                    ${mapLink}
+
+                    <!-- Two Column Layout -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <!-- LEFT COLUMN: Contact & Communication -->
                         <div>
-                            <p class="text-sm text-gray-600 mb-2">Interest Level</p>
-                            <div class="flex gap-1">
-                                ${Array.from({length: 10}, (_, i) => `<div style="background: ${i < lead.interestLevel ? 'var(--primary)' : '#e2e8f0'}" class="h-2 flex-1 rounded"></div>`).join('')}
+                            <!-- Contact Details -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">📞 Contact Details</h3>
+                                ${editField('email1', lead.email1, true)}
+                                ${editField('email2', lead.email2, true)}
+                                ${editField('phone', lead.phone, false, true)}
+                                ${editField('contact_person_mobile', lead.contact_person_mobile, false, true)}
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">${lead.interestLevel}/10</p>
-                        </div>
-                    </div>
 
-                    <div class="card">
-                        <h3 class="font-semibold mb-3">Status & Dates</h3>
-                        <div class="mb-3">
-                            <p class="text-sm text-gray-600 mb-1">Current Status</p>
-                            <select onchange="updateLeadStatus(event, '${lead.id}')" class="form-input text-sm">
-                                <option value="new" ${lead.status === 'new' ? 'selected' : ''}>New</option>
-                                <option value="interested" ${lead.status === 'interested' ? 'selected' : ''}>Interested</option>
-                                <option value="qualified" ${lead.status === 'qualified' ? 'selected' : ''}>Qualified</option>
-                                <option value="proposal" ${lead.status === 'proposal' ? 'selected' : ''}>Proposal</option>
-                                <option value="won" ${lead.status === 'won' ? 'selected' : ''}>Won</option>
-                                <option value="lost" ${lead.status === 'lost' ? 'selected' : ''}>Lost</option>
-                            </select>
+                            <!-- Contact Person -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">👤 Contact Person</h3>
+                                ${editField('contact_person', lead.contact_person)}
+                                ${editField('designation', lead.designation)}
+                            </div>
+
+                            <!-- Communication Timeline -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">⏱️ Communication</h3>
+                                ${readonlyField('Last Contact', lead.last_contact_date || lead.lastcontactdate)}
+                                ${readonlyField('Created At', lead.created_at || lead.createdat)}
+                                ${readonlyField('Updated At', lead.updated_at || lead.updatedat)}
+                            </div>
+
+                            <!-- Interest & Products -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">⭐ Interest & Products</h3>
+                                <div class="mb-3">
+                                    <label class="text-xs font-semibold text-gray-500 uppercase">Interest Level</label>
+                                    <div class="flex gap-1 mt-1">
+                                        ${Array.from({length: 10}, (_, i) => `<div style="background: ${i < (lead.interest_level || lead.interestlevel || 0) ? '#3b82f6' : '#e2e8f0'}" class="h-2 flex-1 rounded"></div>`).join('')}
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">${lead.interest_level || lead.interestlevel || 0}/10</p>
+                                </div>
+                                ${editField('products_interested', lead.products_interested || lead.productsinterested)}
+                            </div>
                         </div>
+
+                        <!-- RIGHT COLUMN: Company & Business -->
                         <div>
-                            <p class="text-sm text-gray-600 mb-1">Follow-up Date</p>
-                            <input type="date" value="${lead.followupDate ? lead.followupDate.substring(0, 10) : ''}" onchange="updateFollowupDate(event, '${lead.id}')" class="form-input text-sm">
+                            <!-- Company Info -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">🏢 Company Info</h3>
+                                ${editField('company_name', lead.company_name || lead.companyname)}
+                                ${editField('category', lead.category)}
+                                ${editField('website', lead.website, false, false, true)}
+                                ${editField('keyword', lead.keyword)}
+                            </div>
+
+                            <!-- Location -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">📍 Location</h3>
+                                ${editField('address', lead.address)}
+                                ${editField('city', lead.city)}
+                                ${editField('state', lead.state)}
+                                ${editField('location', lead.location)}
+                                ${editField('pincode', lead.pincode)}
+                                ${editField('country', lead.country)}
+                            </div>
+
+                            <!-- Reputation -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">⭐ Reputation</h3>
+                                ${editField('rating', lead.rating)}
+                                ${editField('review_count', lead.review_count || lead.reviewcount)}
+                                ${editField('description', lead.description)}
+                            </div>
+
+                            <!-- Digital Assets -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">🔗 Digital Assets</h3>
+                                <div class="mb-3">
+                                    <label class="text-xs font-semibold text-gray-500 uppercase">Google URL</label>
+                                    <a href="${escapeHTML(lead.googleurl || '')}" target="_blank" class="text-blue-600 hover:underline text-sm">${lead.googleurl ? '→ Open in Google' : '(empty)'}</a>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-xs font-semibold text-gray-500 uppercase">Maplink</label>
+                                    <a href="${escapeHTML(lead.maplink || '')}" target="_blank" class="text-blue-600 hover:underline text-sm">${lead.maplink ? '→ Open Map' : '(empty)'}</a>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-xs font-semibold text-gray-500 uppercase">Card Scan</label>
+                                    <a href="${escapeHTML(lead.card_scan_url || '')}" target="_blank" class="text-blue-600 hover:underline text-sm">${lead.card_scan_url ? '→ View Scan' : '(empty)'}</a>
+                                </div>
+                            </div>
+
+                            <!-- Social Links -->
+                            <div class="card mb-4">
+                                <h3 class="font-semibold text-lg mb-4">🌐 Social Media</h3>
+                                <div class="flex gap-3">
+                                    ${lead.linkedin ? `<a href="${lead.linkedin}" target="_blank" class="text-blue-700 hover:text-blue-900 text-xl" title="LinkedIn">💼</a>` : ''}
+                                    ${lead.facebook ? `<a href="${lead.facebook}" target="_blank" class="text-blue-600 hover:text-blue-800 text-xl" title="Facebook">f</a>` : ''}
+                                    ${lead.instagram ? `<a href="${lead.instagram}" target="_blank" class="text-pink-600 hover:text-pink-800 text-xl" title="Instagram">📷</a>` : ''}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="card">
-                        <h3 class="font-semibold mb-3">Notes</h3>
-                        <textarea onchange="updateNotes(event, '${lead.id}')" class="form-input text-sm" rows="4" placeholder="Add notes...">${lead.notes || ''}</textarea>
+                    <!-- Notes Section -->
+                    <div class="card mb-4">
+                        <h3 class="font-semibold text-lg mb-4">📝 Notes</h3>
+                        <textarea id="detail-notes-input" class="w-full px-3 py-2 border border-gray-300 rounded text-sm" rows="4" placeholder="Add notes...">${lead.notes || ''}</textarea>
+                        <button onclick="saveDetailNotes(event, '${lead.id}')" class="mt-2 btn-primary text-sm">Save Notes</button>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2">
-                        <button onclick="dialLead(event, '${lead.phone}')" class="btn-primary text-sm">Call</button>
-                        <button onclick="whatsappLead(event, '${lead.phone}')" class="btn-primary text-sm bg-green-600 hover:bg-green-700">WhatsApp</button>
-                        <button onclick="emailLead(event, '${lead.email}')" class="btn-primary text-sm">Email</button>
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-2 gap-2 mb-4">
+                        <button onclick="dialLead(event, '${lead.phone}')" class="btn-primary text-sm">☎️ Call</button>
+                        <button onclick="whatsappLead(event, '${lead.phone}')" class="btn-primary text-sm bg-green-600 hover:bg-green-700">💬 WhatsApp</button>
+                        <button onclick="emailLead(event, '${lead.email1 || lead.email}')" class="btn-primary text-sm">✉️ Email</button>
+                        <button onclick="generateLLMContent('${lead.id}')" class="btn-primary text-sm bg-purple-600 hover:bg-purple-700">🤖 AI Letter</button>
                     </div>
 
-                    <button onclick="sendEmailToLead('${lead.id}')" class="w-full btn-secondary">Send Email</button>
-                    <button onclick="generateLLMContent('${lead.id}')" class="w-full btn-secondary">Generate Letter (AI)</button>
-                    <button onclick="backToHome()" class="w-full btn-secondary">Back</button>
+                    <button onclick="backToHome()" class="w-full btn-secondary">← Back to Leads</button>
                 </div>
             `;
         }
@@ -1422,6 +1615,370 @@
             navigator.clipboard.writeText(text).then(() => {
                 showToast('Copied!');
             });
+        }
+
+        // ===============================
+        // FIELD VALIDATION HELPERS
+        // ===============================
+
+        /**
+         * Validate email format
+         * Allows empty string for clearing field
+         */
+        function isValidEmail(email) {
+            if (email === '' || email === null) return true; // Allow empty for clearing
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(String(email).toLowerCase());
+        }
+
+        /**
+         * Validate phone format
+         * Allows empty string for clearing
+         * At least 7 digits when non-empty
+         */
+        function isValidPhone(phone) {
+            if (phone === '' || phone === null) return true; // Allow empty for clearing
+            const phoneRegex = /^[\d\s\-+()]+$/;
+            const digitsOnly = String(phone).replace(/\D/g, '');
+            return phoneRegex.test(String(phone)) && digitsOnly.length >= 7;
+        }
+
+        // ===============================
+        // INLINE EDIT HANDLERS
+        // ===============================
+
+        /**
+         * Toggle email edit mode for inline editing
+         */
+        function toggleEmailEdit(event, leadId, fieldName) {
+            event.stopPropagation();
+            const card = document.querySelector(`[data-lead-id="${leadId}"]`);
+            if (!card) return;
+
+            const displayEl = card.querySelector(`.${fieldName}-display`);
+            const editEl = card.querySelector(`.${fieldName}-edit`);
+            
+            if (editEl.classList.contains('hidden')) {
+                editEl.classList.remove('hidden');
+                displayEl.parentElement.classList.add('hidden');
+                const input = card.querySelector(`.${fieldName}-input`);
+                if (input) input.focus();
+            }
+        }
+
+        /**
+         * Toggle phone edit mode for inline editing
+         */
+        function togglePhoneEdit(event, leadId, fieldName) {
+            event.stopPropagation();
+            const card = document.querySelector(`[data-lead-id="${leadId}"]`);
+            if (!card) return;
+
+            const displayEl = card.querySelector(`.${fieldName}-display`);
+            const editEl = card.querySelector(`.${fieldName}-edit`);
+            
+            if (editEl.classList.contains('hidden')) {
+                editEl.classList.remove('hidden');
+                displayEl.parentElement.classList.add('hidden');
+                const input = card.querySelector(`.${fieldName}-input`);
+                if (input) input.focus();
+            }
+        }
+
+        /**
+         * Save lead field (email or phone) to backend and sync local state
+         */
+        async function saveLeadField(event, leadId, fieldName) {
+            event.stopPropagation();
+
+            const card = document.querySelector(`[data-lead-id="${leadId}"]`);
+            if (!card) return;
+
+            const input = card.querySelector(`.${fieldName}-input`);
+            const newValue = input ? input.value.trim() : '';
+
+            // Validate
+            if (fieldName.includes('email')) {
+                if (!isValidEmail(newValue)) {
+                    showToast('❌ Invalid email format', 'error');
+                    return;
+                }
+            } else if (fieldName.includes('phone') || fieldName === 'phone') {
+                if (!isValidPhone(newValue)) {
+                    showToast('❌ Invalid phone format (min 7 digits)', 'error');
+                    return;
+                }
+            }
+
+            // Show loading
+            showLoadingSpinner();
+
+            try {
+                // Call backend API
+                const response = await syncToBackend('updateLeadField', {
+                    leadId: leadId,
+                    fieldName: fieldName,
+                    newValue: newValue
+                });
+
+                if (response && response.success) {
+                    // Update local state
+                    const lead = state.allLeads.find(l => l.id === leadId);
+                    if (lead) {
+                        lead[fieldName] = newValue;
+                        
+                        // Update IndexedDB cache
+                        await saveLeadsToIndexedDB(state.allLeads);
+                        
+                        // Update display
+                        const displayEl = card.querySelector(`.${fieldName}-display`);
+                        if (displayEl) {
+                            displayEl.textContent = newValue || '(empty)';
+                        }
+                        
+                        // Exit edit mode
+                        cancelEdit(event, leadId, fieldName);
+                        
+                        showToast(`✅ ${fieldName} updated successfully`);
+                    }
+                } else {
+                    showToast(`❌ ${response?.message || 'Failed to update'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving field:', error);
+                showToast('❌ Error saving changes', 'error');
+            } finally {
+                hideLoadingSpinner();
+            }
+        }
+
+        /**
+         * Clear (delete) a lead field - set to empty string
+         */
+        async function clearLeadField(event, leadId, fieldName) {
+            event.stopPropagation();
+
+            // Confirm before clearing
+            if (!confirm(`Clear ${fieldName}?`)) return;
+
+            showLoadingSpinner();
+
+            try {
+                const response = await syncToBackend('updateLeadField', {
+                    leadId: leadId,
+                    fieldName: fieldName,
+                    newValue: ''
+                });
+
+                if (response && response.success) {
+                    const lead = state.allLeads.find(l => l.id === leadId);
+                    if (lead) {
+                        lead[fieldName] = '';
+                        await saveLeadsToIndexedDB(state.allLeads);
+                        
+                        const card = document.querySelector(`[data-lead-id="${leadId}"]`);
+                        const displayEl = card.querySelector(`.${fieldName}-display`);
+                        if (displayEl) {
+                            displayEl.textContent = '(empty)';
+                        }
+                        
+                        cancelEdit(event, leadId, fieldName);
+                        showToast(`✅ ${fieldName} cleared`);
+                    }
+                } else {
+                    showToast(`❌ ${response?.message || 'Failed to clear'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error clearing field:', error);
+                showToast('❌ Error clearing field', 'error');
+            } finally {
+                hideLoadingSpinner();
+            }
+        }
+
+        /**
+         * Cancel edit mode - discard changes
+         */
+        function cancelEdit(event, leadId, fieldName) {
+            event.stopPropagation();
+            const card = document.querySelector(`[data-lead-id="${leadId}"]`);
+            if (!card) return;
+
+            const displayEl = card.querySelector(`.${fieldName}-display`);
+            const editEl = card.querySelector(`.${fieldName}-edit`);
+            
+            if (editEl) {
+                editEl.classList.add('hidden');
+                if (displayEl) displayEl.parentElement.classList.remove('hidden');
+            }
+        }
+
+        // ===============================
+        // DETAIL PAGE INLINE EDIT HANDLERS
+        // ===============================
+
+        /**
+         * Toggle edit mode for detail page fields
+         */
+        function toggleDetailEdit(event, fieldName) {
+            event.stopPropagation();
+            const displayEl = document.querySelector(`.detail-display-${fieldName}`);
+            const editEl = document.querySelector(`.detail-edit-${fieldName}`);
+            const input = document.querySelector(`.detail-input-${fieldName}`);
+            
+            if (editEl.classList.contains('hidden')) {
+                editEl.classList.remove('hidden');
+                displayEl.classList.add('hidden');
+                if (input) input.focus();
+            }
+        }
+
+        /**
+         * Save detail page field to backend
+         */
+        async function saveDetailField(event, leadId, fieldName) {
+            event.stopPropagation();
+
+            const input = document.querySelector(`.detail-input-${fieldName}`);
+            const newValue = input ? input.value.trim() : '';
+
+            // Validate based on field type
+            if (fieldName.includes('email')) {
+                if (!isValidEmail(newValue)) {
+                    showToast('❌ Invalid email format', 'error');
+                    return;
+                }
+            } else if (fieldName.includes('phone') || fieldName === 'phone' || fieldName === 'contact_person_mobile') {
+                if (!isValidPhone(newValue)) {
+                    showToast('❌ Invalid phone format (min 7 digits)', 'error');
+                    return;
+                }
+            }
+
+            showLoadingSpinner();
+
+            try {
+                const response = await syncToBackend('updateLeadField', {
+                    leadId: leadId,
+                    fieldName: fieldName,
+                    newValue: newValue
+                });
+
+                if (response && response.success) {
+                    const lead = state.allLeads.find(l => l.id === leadId);
+                    if (lead) {
+                        lead[fieldName] = newValue;
+                        await saveLeadsToIndexedDB(state.allLeads);
+                        
+                        const displayEl = document.querySelector(`.detail-display-${fieldName}`);
+                        if (displayEl) {
+                            displayEl.textContent = newValue || '(empty)';
+                        }
+                        
+                        cancelDetailEdit(event, fieldName);
+                        showToast(`✅ ${fieldName.replace(/_/g, ' ')} updated`);
+                    }
+                } else {
+                    showToast(`❌ ${response?.message || 'Failed to update'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving field:', error);
+                showToast('❌ Error saving changes', 'error');
+            } finally {
+                hideLoadingSpinner();
+            }
+        }
+
+        /**
+         * Clear detail page field
+         */
+        async function clearDetailField(event, leadId, fieldName) {
+            event.stopPropagation();
+
+            if (!confirm(`Clear ${fieldName}?`)) return;
+
+            showLoadingSpinner();
+
+            try {
+                const response = await syncToBackend('updateLeadField', {
+                    leadId: leadId,
+                    fieldName: fieldName,
+                    newValue: ''
+                });
+
+                if (response && response.success) {
+                    const lead = state.allLeads.find(l => l.id === leadId);
+                    if (lead) {
+                        lead[fieldName] = '';
+                        await saveLeadsToIndexedDB(state.allLeads);
+                        
+                        const displayEl = document.querySelector(`.detail-display-${fieldName}`);
+                        if (displayEl) {
+                            displayEl.textContent = '(empty)';
+                        }
+                        
+                        cancelDetailEdit(event, fieldName);
+                        showToast(`✅ ${fieldName.replace(/_/g, ' ')} cleared`);
+                    }
+                } else {
+                    showToast(`❌ ${response?.message || 'Failed to clear'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error clearing field:', error);
+                showToast('❌ Error clearing field', 'error');
+            } finally {
+                hideLoadingSpinner();
+            }
+        }
+
+        /**
+         * Cancel detail page edit
+         */
+        function cancelDetailEdit(event, fieldName) {
+            event.stopPropagation();
+            const displayEl = document.querySelector(`.detail-display-${fieldName}`);
+            const editEl = document.querySelector(`.detail-edit-${fieldName}`);
+            
+            if (editEl) {
+                editEl.classList.add('hidden');
+                if (displayEl) displayEl.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Save detail page notes
+         */
+        async function saveDetailNotes(event, leadId) {
+            event.stopPropagation();
+            
+            const notesInput = document.getElementById('detail-notes-input');
+            const newNotes = notesInput ? notesInput.value.trim() : '';
+
+            showLoadingSpinner();
+
+            try {
+                const response = await syncToBackend('updateLeadField', {
+                    leadId: leadId,
+                    fieldName: 'notes',
+                    newValue: newNotes
+                });
+
+                if (response && response.success) {
+                    const lead = state.allLeads.find(l => l.id === leadId);
+                    if (lead) {
+                        lead.notes = newNotes;
+                        await saveLeadsToIndexedDB(state.allLeads);
+                        showToast('✅ Notes saved');
+                    }
+                } else {
+                    showToast(`❌ ${response?.message || 'Failed to save notes'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error saving notes:', error);
+                showToast('❌ Error saving notes', 'error');
+            } finally {
+                hideLoadingSpinner();
+            }
         }
 
         // ===============================
